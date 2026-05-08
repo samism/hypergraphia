@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-05-08
+- Clearly is now a focused, distraction-free markdown editor — vault index, chat, wiki, and CLI/MCP integrations have been removed
+- New hover-revealed bottom toolbar with a Copy menu, styled with Liquid Glass
+
 ## [2.13.0] - 2026-05-04
 - Customize each vault folder's icon and tint color in the sidebar
 - Optional status bar shows live word and character counts
