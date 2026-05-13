@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-05-13
+- Scratchpad shortcut no longer steals focus from the app you were using
+- Scratchpad title no longer overlaps the traffic-light buttons
+
 ## [3.1.0] - 2026-05-12
 - Scratchpad now keeps a persistent history in a single floating window — closing won't lose work, and you can browse past notes from the title dropdown (search, ⌘N for new, ⌘P for history, ⌫ to delete with undo)
 - New Settings → Scratchpads tab with retention controls (keep all, delete after N days, or keep newest N)
