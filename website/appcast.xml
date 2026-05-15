@@ -3,6 +3,20 @@
   <channel>
     <title>Clearly</title>
     <item>
+      <title>Version 3.1.2</title>
+      <sparkle:version>3.1.2</sparkle:version>
+      <sparkle:shortVersionString>3.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Fri, 15 May 2026 14:05:11 +0000</pubDate>
+      <description><![CDATA[<ul><li>Double-clicking text in Preview no longer kicks you back to Edit mode — word selection works as expected</li><li>Dead-key composition (e.g. typing accented characters) no longer silently drops mid-typed input</li></ul>]]></description>
+      <enclosure
+        url="https://github.com/Shpigford/clearly/releases/download/v3.1.2/Clearly.dmg"
+        sparkle:edSignature="sNPTSkrd+0GWRA9aYOWv/Y+ZyZFmzC4ruvHuyi4N2heID+FPudGHjHx01xnae+l3fVqly11fg2YDunDCLU9EAw=="
+        length="8753452"
+        type="application/octet-stream"
+      />
+    </item>
+    <item>
       <title>Version 3.1.1</title>
       <sparkle:version>3.1.1</sparkle:version>
       <sparkle:shortVersionString>3.1.1</sparkle:shortVersionString>
