@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-05-15
+- Double-clicking text in Preview no longer kicks you back to Edit mode — word selection works as expected
+- Dead-key composition (e.g. typing accented characters) no longer silently drops mid-typed input
+
 ## [3.1.1] - 2026-05-13
 - Scratchpad shortcut no longer steals focus from the app you were using
 - Scratchpad title no longer overlaps the traffic-light buttons
