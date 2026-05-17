@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-05-17
+- Open documents auto-reload when they're changed by another app
+- Wikilinks now render properly and no longer break Markdown tables
+- Scratchpad window can be resized
+
 ## [3.1.2] - 2026-05-15
 - Double-clicking text in Preview no longer kicks you back to Edit mode — word selection works as expected
 - Dead-key composition (e.g. typing accented characters) no longer silently drops mid-typed input
