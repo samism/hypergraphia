@@ -23,6 +23,14 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
     /// menubar" when the menubar-only toggle is on.
     private var allowFullQuit = false
 
+    /// True while a launcher / open panel is in flight that hasn't yet
+    /// produced a document. Defers `applicationShouldTerminate(After…)` so
+    /// the brief zero-window window between "panel closes" and "doc window
+    /// appears" doesn't quit the app when `keepRunningMenubarOnly` is false.
+    /// Set whenever a doc-yielding panel is shown; cleared in
+    /// `updateActivationPolicy` once a real `NSDocument` exists.
+    private var isDocumentPanelPresented = false
+
     /// SwiftUI side stores this with `@AppStorage("keepRunningMenubarOnly")`,
     /// default `true`. Use `object(forKey:)` to distinguish unset (→ true)
     /// from an explicit `false` the user wrote.
@@ -43,6 +51,23 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
         Self.shared = self
         injectSpellingMenu()
         injectFontSubmenu()
+
+        DiagnosticLog.log("didFinishLaunching: launchBehavior=\(launchBehavior), keepRunning=\(keepRunningMenubarOnly), docs=\(NSDocumentController.shared.documents.count)")
+
+        // SwiftUI's `DocumentGroup` launcher will appear at launch for any
+        // `launchBehavior` that doesn't itself open a document — "filePicker"
+        // (we return false from `applicationOpenUntitledFile`) and "nothing"
+        // (we return true but no doc opens). When the launcher dismisses,
+        // both `applicationShouldTerminate` and
+        // `applicationShouldTerminateAfterLastWindowClosed` fire and would
+        // terminate the app before the user-picked document finishes
+        // loading. Set the panel flag now so the defer logic in those
+        // methods can hold quit off until the doc arrives.
+        let launchBehaviorWillOpenDoc = launchBehavior == "newDocument" || launchBehavior == "lastFile"
+        if !launchBehaviorWillOpenDoc && NSDocumentController.shared.documents.isEmpty {
+            isDocumentPanelPresented = true
+            DiagnosticLog.log("didFinishLaunching: set isDocumentPanelPresented=true")
+        }
 
         let nc = NotificationCenter.default
         observers.append(nc.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { [weak self] notification in
@@ -91,6 +116,7 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
         default:
             // "filePicker" — let `NSDocumentController` show the native
             // Recent Files / New Document panel.
+            isDocumentPanelPresented = true
             return false
         }
     }
@@ -111,16 +137,46 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        DiagnosticLog.log("appShouldTerminateAfterLast: keepRunning=\(keepRunningMenubarOnly), panel=\(isDocumentPanelPresented), docs=\(NSDocumentController.shared.documents.count)")
         if keepRunningMenubarOnly {
             NSApp.setActivationPolicy(.accessory)
             return false
+        }
+        if scheduleDeferredQuitIfPanelInFlight() { return false }
+        return true
+    }
+
+    /// If a launcher / open panel is currently in flight, defer a quit by
+    /// re-checking 3 seconds later. Returns false (no defer) when there's
+    /// no panel pending.
+    @discardableResult
+    private func scheduleDeferredQuitIfPanelInFlight() -> Bool {
+        guard isDocumentPanelPresented else { return false }
+        DiagnosticLog.log("scheduleDeferredQuit: deferring 3s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self else { return }
+            // Clear first so any re-entry into a terminate path doesn't
+            // re-arm another defer.
+            self.isDocumentPanelPresented = false
+            let docCount = NSDocumentController.shared.documents.count
+            DiagnosticLog.log("scheduleDeferredQuit: fired, docs=\(docCount)")
+            if docCount == 0 {
+                NSApp.terminate(nil)
+            }
         }
         return true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        DiagnosticLog.log("appShouldTerminate: allowFullQuit=\(allowFullQuit), keepRunning=\(keepRunningMenubarOnly), panel=\(isDocumentPanelPresented), docs=\(NSDocumentController.shared.documents.count)")
         if allowFullQuit { return .terminateNow }
-        guard keepRunningMenubarOnly else { return .terminateNow }
+        guard keepRunningMenubarOnly else {
+            // menubar-off: a launcher / open panel may have dismissed and
+            // SwiftUI may be in the middle of creating the chosen document.
+            // Defer the actual quit until either it shows up or 3s lapses.
+            if scheduleDeferredQuitIfPanelInFlight() { return .terminateCancel }
+            return .terminateNow
+        }
 
         // Drop to menubar instead of terminating. `closeAllDocuments` walks
         // every NSDocument (including SwiftUI DocumentGroup ones), prompting
@@ -173,6 +229,14 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
     /// off. When the toggle is on, `.regular` only while a document window
     /// is on screen.
     func updateActivationPolicy() {
+        // Clear the panel-flow flag once a real `NSDocument` exists. The
+        // SwiftUI launcher also counts as a "doc window" by frame/class but
+        // doesn't have an associated `NSDocument`, so we use the controller's
+        // documents collection (which the launcher is absent from) as the
+        // authoritative "is a real doc up" signal.
+        if !NSDocumentController.shared.documents.isEmpty {
+            isDocumentPanelPresented = false
+        }
         guard keepRunningMenubarOnly else {
             if NSApp.activationPolicy() != .regular {
                 NSApp.setActivationPolicy(.regular)
