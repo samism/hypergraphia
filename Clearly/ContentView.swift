@@ -63,6 +63,11 @@ struct ContentView: View {
             }
 
             HStack(spacing: 0) {
+                if outlineState.isVisible {
+                    OutlineView(outlineState: outlineState, isEditorVisible: viewMode == .edit)
+                        .frame(width: 240)
+                }
+
                 mainPane
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay(alignment: .bottom) {
@@ -101,11 +106,6 @@ struct ContentView: View {
                             }
                         }
                     }
-
-                if outlineState.isVisible {
-                    OutlineView(outlineState: outlineState, isEditorVisible: viewMode == .edit)
-                        .frame(width: 240)
-                }
             }
         }
         .frame(minWidth: 600, minHeight: 360)
