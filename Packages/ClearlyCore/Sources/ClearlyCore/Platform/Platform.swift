@@ -52,13 +52,9 @@ public enum PlatformTextAttributes {
 public extension PlatformFont {
     static func clearlySansSystemFont(ofSize size: CGFloat, weight: PlatformFontWeight) -> PlatformFont {
         #if os(macOS)
-        let fontName = weight == .bold ? "HelveticaNeue-Bold" : "HelveticaNeue"
-        if let font = NSFont(name: fontName, size: size) { return font }
         let platformWeight: NSFont.Weight = weight == .bold ? .bold : .regular
         return NSFont.systemFont(ofSize: size, weight: platformWeight)
         #else
-        let fontName = weight == .bold ? "HelveticaNeue-Bold" : "HelveticaNeue"
-        if let font = UIFont(name: fontName, size: size) { return font }
         let platformWeight: UIFont.Weight = weight == .bold ? .bold : .regular
         return UIFont.systemFont(ofSize: size, weight: platformWeight)
         #endif

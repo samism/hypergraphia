@@ -1,69 +1,76 @@
-/* Highlight.js theme — GitHub-inspired light/dark */
+/* Highlight.js theme — Notes-inspired warm duotone.
+   Two hues only: the theme gold for keywords/tags (matching links and the
+   accent), a warm sienna/salmon for strings and literal values. Types and
+   definitions stay neutral but bold; comments stay gray italic. */
 
 /* Light mode (default) */
 .hljs {
-    color: #24292e;
+    color: #1C1C1E;
     background: transparent;
 }
-.hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
-.hljs-keyword, .hljs-selector-tag, .hljs-meta { color: #d73a49; }
-.hljs-string, .hljs-addition { color: #032f62; }
-.hljs-number, .hljs-literal { color: #005cc5; }
-.hljs-built_in, .hljs-type { color: #6f42c1; }
-.hljs-title, .hljs-title.class_, .hljs-title.function_ { color: #6f42c1; }
-.hljs-attr, .hljs-attribute { color: #005cc5; }
-.hljs-symbol, .hljs-bullet { color: #e36209; }
-.hljs-variable, .hljs-template-variable { color: #e36209; }
-.hljs-link { color: #032f62; text-decoration: underline; }
-.hljs-selector-id, .hljs-selector-class { color: #6f42c1; }
-.hljs-name, .hljs-tag { color: #22863a; }
-.hljs-deletion { color: #b31d28; background-color: rgba(255, 0, 0, 0.05); }
-.hljs-addition { background-color: rgba(0, 255, 0, 0.05); }
-.hljs-section { color: #005cc5; font-weight: bold; }
+.hljs-comment, .hljs-quote { color: #6E6E73; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-meta { color: #997000; }
+.hljs-string { color: #A0522D; }
+.hljs-number, .hljs-literal { color: #A0522D; }
+.hljs-built_in, .hljs-type { color: #1C1C1E; }
+.hljs-title, .hljs-title.class_, .hljs-title.function_ { color: #1C1C1E; }
+.hljs-attr, .hljs-attribute { color: #3A3A3C; }
+.hljs-symbol, .hljs-bullet { color: #A0522D; }
+.hljs-variable, .hljs-template-variable { color: #3A3A3C; }
+.hljs-link { color: #997000; text-decoration: underline; }
+.hljs-selector-id, .hljs-selector-class { color: #997000; }
+.hljs-name, .hljs-tag { color: #997000; }
+.hljs-deletion { color: #3A3A3C; background-color: rgba(255, 59, 48, 0.08); }
+.hljs-addition { background-color: rgba(52, 199, 89, 0.10); }
+.hljs-section { color: #1C1C1E; font-weight: bold; }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: bold; }
-.hljs-meta .hljs-keyword { color: #005cc5; }
-.hljs-regexp { color: #032f62; }
-.hljs-params { color: #24292e; }
-.hljs-property { color: #005cc5; }
-.hljs-subst { color: #24292e; }
+.hljs-meta .hljs-keyword { color: #997000; }
+.hljs-regexp { color: #A0522D; }
+.hljs-params { color: #1C1C1E; }
+.hljs-property { color: #3A3A3C; }
+.hljs-subst { color: #1C1C1E; }
+
+/* Definitions get weight, not hue (all modes) */
+.hljs-title, .hljs-title.class_, .hljs-title.function_,
+.hljs-built_in, .hljs-type { font-weight: 600; }
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
     .hljs {
-        color: #e1e4e8;
+        color: #F2F2F7;
         background: transparent;
     }
-    .hljs-comment, .hljs-quote { color: #8b949e; }
-    .hljs-keyword, .hljs-selector-tag, .hljs-meta { color: #ff7b72; }
-    .hljs-string, .hljs-addition { color: #a5d6ff; }
-    .hljs-number, .hljs-literal { color: #79c0ff; }
-    .hljs-built_in, .hljs-type { color: #d2a8ff; }
-    .hljs-title, .hljs-title.class_, .hljs-title.function_ { color: #d2a8ff; }
-    .hljs-attr, .hljs-attribute { color: #79c0ff; }
-    .hljs-symbol, .hljs-bullet { color: #ffa657; }
-    .hljs-variable, .hljs-template-variable { color: #ffa657; }
-    .hljs-link { color: #a5d6ff; }
-    .hljs-selector-id, .hljs-selector-class { color: #d2a8ff; }
-    .hljs-name, .hljs-tag { color: #7ee787; }
-    .hljs-deletion { color: #ffa198; background-color: rgba(255, 0, 0, 0.1); }
-    .hljs-addition { background-color: rgba(0, 255, 0, 0.1); }
-    .hljs-section { color: #79c0ff; }
-    .hljs-meta .hljs-keyword { color: #79c0ff; }
-    .hljs-regexp { color: #a5d6ff; }
-    .hljs-property { color: #79c0ff; }
-    .hljs-subst { color: #e1e4e8; }
+    .hljs-comment, .hljs-quote { color: #8E8E93; }
+    .hljs-keyword, .hljs-selector-tag, .hljs-meta { color: #FFD60A; }
+    .hljs-string { color: #FF8170; }
+    .hljs-number, .hljs-literal { color: #FF8170; }
+    .hljs-built_in, .hljs-type { color: #F2F2F7; }
+    .hljs-title, .hljs-title.class_, .hljs-title.function_ { color: #F2F2F7; }
+    .hljs-attr, .hljs-attribute { color: #D1D1D6; }
+    .hljs-symbol, .hljs-bullet { color: #FF8170; }
+    .hljs-variable, .hljs-template-variable { color: #D1D1D6; }
+    .hljs-link { color: #FFD60A; }
+    .hljs-selector-id, .hljs-selector-class { color: #FFD60A; }
+    .hljs-name, .hljs-tag { color: #FFD60A; }
+    .hljs-deletion { color: #D1D1D6; background-color: rgba(255, 69, 58, 0.16); }
+    .hljs-addition { background-color: rgba(48, 209, 88, 0.16); }
+    .hljs-section { color: #F2F2F7; }
+    .hljs-meta .hljs-keyword { color: #FFD60A; }
+    .hljs-regexp { color: #FF8170; }
+    .hljs-property { color: #D1D1D6; }
+    .hljs-subst { color: #F2F2F7; }
 }
 
 /* Print: force light colors */
 @media print {
-    .hljs { color: #222222 !important; }
-    .hljs-comment, .hljs-quote { color: #6a737d !important; }
-    .hljs-keyword, .hljs-selector-tag { color: #d73a49 !important; }
-    .hljs-string { color: #032f62 !important; }
-    .hljs-number, .hljs-literal { color: #005cc5 !important; }
-    .hljs-built_in, .hljs-type, .hljs-title { color: #6f42c1 !important; }
-    .hljs-name, .hljs-tag { color: #22863a !important; }
+    .hljs { color: #1C1C1E !important; }
+    .hljs-comment, .hljs-quote { color: #6E6E73 !important; }
+    .hljs-keyword, .hljs-selector-tag { color: #997000 !important; }
+    .hljs-string { color: #A0522D !important; }
+    .hljs-number, .hljs-literal { color: #A0522D !important; }
+    .hljs-built_in, .hljs-type, .hljs-title { color: #1C1C1E !important; }
+    .hljs-name, .hljs-tag { color: #997000 !important; }
 }
 
 /* Line numbers */
@@ -85,40 +92,41 @@ pre code {
     text-align: right;
     padding-right: 0.6em;
     margin-right: 0.4em;
-    color: #AEAEB2;
+    color: #6E6E73;
     user-select: none;
     -webkit-user-select: none;
-    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    border-right: 1px solid rgba(0, 0, 0, 0.12);
 }
 @media (prefers-color-scheme: dark) {
     .code-numbered .code-line::before {
-        color: #48484A;
-        border-right-color: rgba(255, 255, 255, 0.06);
+        color: #8E8E93;
+        border-right-color: rgba(255, 255, 255, 0.12);
     }
 }
 @media print {
     .code-numbered .code-line::before {
-        color: #AEAEB2 !important;
-        border-right-color: rgba(0, 0, 0, 0.06) !important;
+        color: #6E6E73 !important;
+        border-right-color: rgba(0, 0, 0, 0.12) !important;
     }
 }
 
 /* Diff highlighting */
 .diff-add {
-    background-color: rgba(46, 160, 67, 0.15);
+    background-color: rgba(52, 199, 89, 0.10);
     display: block;
 }
 .diff-del {
-    background-color: rgba(248, 81, 73, 0.15);
+    background-color: rgba(255, 59, 48, 0.07);
     display: block;
 }
 .diff-hunk {
-    color: #8b949e;
+    color: #6E6E73;
     display: block;
 }
 @media (prefers-color-scheme: dark) {
-    .diff-add { background-color: rgba(46, 160, 67, 0.2); }
-    .diff-del { background-color: rgba(248, 81, 73, 0.2); }
+    .diff-add { background-color: rgba(48, 209, 88, 0.15); }
+    .diff-del { background-color: rgba(255, 69, 58, 0.15); }
+    .diff-hunk { color: #8E8E93; }
 }
 
 /* Code filename header */
@@ -126,10 +134,10 @@ pre code {
     font-family: "JetBrains Mono", "JetBrainsMono-Regular", "SF Mono", SFMono-Regular, Menlo, monospace;
     font-size: 0.8em;
     padding: 0.5em 1.25em;
-    background: #EDEDF0;
+    background: #F2F2F7;
     border: none;
     border-radius: 10px 10px 0 0;
-    color: #86868B;
+    color: #6E6E73;
 }
 .code-filename + pre {
     border-top-left-radius: 0;
@@ -137,13 +145,13 @@ pre code {
 }
 @media (prefers-color-scheme: dark) {
     .code-filename {
-        background: rgba(255, 255, 255, 0.07);
-        color: #AEAEB2;
+        background: #2C2C2E;
+        color: #A1A1A6;
     }
 }
 @media print {
     .code-filename {
-        background: #EDEDF0 !important;
-        color: #86868B !important;
+        background: #F2F2F7 !important;
+        color: #6E6E73 !important;
     }
 }

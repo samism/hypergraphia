@@ -7,6 +7,7 @@ public struct PreviewPalette: Sendable {
     public var text: String
     public var headingSecondary: String
     public var background: String
+    public var accent: String
     public var link: String
     public var wiki: String
     public var wikiBorder: String
@@ -62,6 +63,7 @@ public struct PreviewPalette: Sendable {
         text: String,
         headingSecondary: String,
         background: String,
+        accent: String,
         link: String,
         wiki: String,
         wikiBorder: String,
@@ -116,6 +118,7 @@ public struct PreviewPalette: Sendable {
         self.text = text
         self.headingSecondary = headingSecondary
         self.background = background
+        self.accent = accent
         self.link = link
         self.wiki = wiki
         self.wikiBorder = wikiBorder
@@ -168,112 +171,114 @@ public struct PreviewPalette: Sendable {
         self.lightboxControlButtonHover = lightboxControlButtonHover
     }
 
-    /// Palette applied by default (base `:root`). Matches the pre-tokenization Mac preview values.
+    /// Palette applied by default (base `:root`). Notes-style light paper with yellow accent.
     public static let light = PreviewPalette(
-        text: "#1D1D1F",
-        headingSecondary: "rgba(29, 29, 31, 0.55)",
+        text: "#1C1C1E",
+        headingSecondary: "rgba(28, 28, 30, 0.55)",
         background: "#FFFFFF",
-        link: "#0071E3",
-        wiki: "#34855A",
-        wikiBorder: "rgba(52, 133, 90, 0.3)",
-        wikiBroken: "#B35C3A",
-        wikiBrokenBorder: "rgba(179, 92, 58, 0.4)",
-        tag: "#3A6EA5",
-        tagBg: "rgba(58, 110, 165, 0.08)",
-        tagBgHover: "rgba(58, 110, 165, 0.15)",
-        codeBg: "rgba(0, 0, 0, 0.04)",
-        codeFg: "#1D1D1F",
-        codeFilenameBg: "#EDEDF0",
-        codeFilenameFg: "#86868B",
-        preBg: "#F5F5F7",
-        preFg: "#1D1D1F",
-        btnBg: "rgba(0, 0, 0, 0.05)",
-        btnBgHover: "rgba(0, 0, 0, 0.08)",
-        btnBgActive: "rgba(0, 0, 0, 0.12)",
-        btnFg: "#86868B",
+        accent: "#FFCC00",
+        link: "#997000",
+        wiki: "#997000",
+        wikiBorder: "rgba(153, 112, 0, 0.32)",
+        wikiBroken: "#6E5200",
+        wikiBrokenBorder: "rgba(110, 82, 0, 0.4)",
+        tag: "#997000",
+        tagBg: "rgba(0, 0, 0, 0.05)",
+        tagBgHover: "rgba(255, 204, 0, 0.14)",
+        codeBg: "rgba(0, 0, 0, 0.06)",
+        codeFg: "#1C1C1E",
+        codeFilenameBg: "#F2F2F7",
+        codeFilenameFg: "#6E6E73",
+        preBg: "#F2F2F7",
+        preFg: "#1C1C1E",
+        btnBg: "rgba(0, 0, 0, 0.06)",
+        btnBgHover: "rgba(0, 0, 0, 0.10)",
+        btnBgActive: "rgba(0, 0, 0, 0.14)",
+        btnFg: "#6E6E73",
         btnSuccess: "#34C759",
-        blockquoteBg: "rgba(0, 0, 0, 0.03)",
-        blockquoteFg: "#48484A",
-        borderSubtle: "rgba(0, 0, 0, 0.06)",
-        borderStrong: "rgba(0, 0, 0, 0.12)",
-        thHoverBg: "rgba(0, 0, 0, 0.03)",
-        rowHoverBg: "rgba(0, 0, 0, 0.02)",
-        caption: "#86868B",
-        hrBorder: "rgba(0, 0, 0, 0.1)",
-        markBg: "rgba(255, 212, 0, 0.3)",
-        calloutDefault: "rgba(0, 122, 255, 0.1)",
-        calloutTip: "rgba(52, 199, 89, 0.1)",
-        calloutImportant: "rgba(175, 82, 222, 0.1)",
-        calloutWarning: "rgba(255, 149, 0, 0.1)",
-        calloutCaution: "rgba(255, 59, 48, 0.1)",
-        calloutAbstract: "rgba(90, 200, 250, 0.1)",
-        calloutExample: "rgba(88, 86, 214, 0.1)",
-        calloutQuote: "rgba(142, 142, 147, 0.1)",
-        calloutQuestion: "rgba(255, 204, 0, 0.1)",
-        tocBg: "rgba(0, 0, 0, 0.025)",
-        anchor: "#AEAEB2",
+        blockquoteBg: "rgba(0, 0, 0, 0.05)",
+        blockquoteFg: "#3A3A3C",
+        borderSubtle: "rgba(0, 0, 0, 0.08)",
+        borderStrong: "rgba(0, 0, 0, 0.16)",
+        thHoverBg: "rgba(0, 0, 0, 0.04)",
+        rowHoverBg: "rgba(0, 0, 0, 0.03)",
+        caption: "#6E6E73",
+        hrBorder: "rgba(0, 0, 0, 0.12)",
+        markBg: "rgba(255, 204, 0, 0.35)",
+        calloutDefault: "rgba(0, 0, 0, 0.05)",
+        calloutTip: "rgba(0, 0, 0, 0.05)",
+        calloutImportant: "rgba(0, 0, 0, 0.05)",
+        calloutWarning: "rgba(255, 204, 0, 0.14)",
+        calloutCaution: "rgba(255, 59, 48, 0.09)",
+        calloutAbstract: "rgba(0, 0, 0, 0.05)",
+        calloutExample: "rgba(0, 0, 0, 0.05)",
+        calloutQuote: "rgba(0, 0, 0, 0.05)",
+        calloutQuestion: "rgba(0, 0, 0, 0.05)",
+        tocBg: "rgba(0, 0, 0, 0.05)",
+        anchor: "#B0A16A",
         popoverBg: "#FFFFFF",
-        popoverCodeBg: "rgba(0, 0, 0, 0.04)",
-        popoverShadow1: "rgba(0, 0, 0, 0.08)",
+        popoverCodeBg: "rgba(0, 0, 0, 0.06)",
+        popoverShadow1: "rgba(0, 0, 0, 0.10)",
         popoverShadow2: "rgba(0, 0, 0, 0.06)",
-        frontmatterBg: "rgba(0, 0, 0, 0.03)",
+        frontmatterBg: "rgba(0, 0, 0, 0.05)",
         lightboxBg: "rgba(0, 0, 0, 0.75)",
-        mermaidLightboxBg: "rgba(245, 245, 247, 0.92)",
+        mermaidLightboxBg: "rgba(245, 245, 247, 0.94)",
         lightboxControlSurface: "rgba(40, 40, 40, 0.92)",
         lightboxControlSurfaceHover: "rgba(60, 60, 60, 0.95)",
         lightboxControlBorder: "rgba(255, 255, 255, 0.08)",
         lightboxControlButtonHover: "rgba(255, 255, 255, 0.14)"
     )
 
-    /// Palette applied inside `@media (prefers-color-scheme: dark)`.
+    /// Palette applied inside `@media (prefers-color-scheme: dark)`: Notes charcoal with yellow accent.
     public static let dark = PreviewPalette(
-        text: "#F5F5F7",
-        headingSecondary: "rgba(245, 245, 247, 0.55)",
-        background: "#323236",
-        link: "#0A84FF",
-        wiki: "#5ABF80",
-        wikiBorder: "rgba(90, 191, 128, 0.3)",
-        wikiBroken: "#D97A57",
-        wikiBrokenBorder: "rgba(217, 122, 87, 0.4)",
-        tag: "#7AB0D9",
-        tagBg: "rgba(122, 176, 217, 0.12)",
-        tagBgHover: "rgba(122, 176, 217, 0.2)",
-        codeBg: "rgba(255, 255, 255, 0.06)",
-        codeFg: "#F5F5F7",
-        codeFilenameBg: "rgba(255, 255, 255, 0.07)",
-        codeFilenameFg: "#AEAEB2",
-        preBg: "rgba(255, 255, 255, 0.05)",
-        preFg: "#F5F5F7",
-        btnBg: "rgba(255, 255, 255, 0.07)",
-        btnBgHover: "rgba(255, 255, 255, 0.1)",
-        btnBgActive: "rgba(255, 255, 255, 0.14)",
-        btnFg: "#AEAEB2",
+        text: "#F2F2F7",
+        headingSecondary: "rgba(242, 242, 247, 0.55)",
+        background: "#1C1C1E",
+        accent: "#FFD60A",
+        link: "#FFD60A",
+        wiki: "#FFD60A",
+        wikiBorder: "rgba(255, 214, 10, 0.35)",
+        wikiBroken: "#E6C84F",
+        wikiBrokenBorder: "rgba(230, 200, 79, 0.45)",
+        tag: "#FFD60A",
+        tagBg: "rgba(255, 255, 255, 0.08)",
+        tagBgHover: "rgba(255, 214, 10, 0.16)",
+        codeBg: "#2C2C2E",
+        codeFg: "#F2F2F7",
+        codeFilenameBg: "#2C2C2E",
+        codeFilenameFg: "#A1A1A6",
+        preBg: "#2C2C2E",
+        preFg: "#F2F2F7",
+        btnBg: "rgba(255, 255, 255, 0.08)",
+        btnBgHover: "rgba(255, 255, 255, 0.12)",
+        btnBgActive: "rgba(255, 255, 255, 0.16)",
+        btnFg: "#D1D1D6",
         btnSuccess: "#30D158",
-        blockquoteBg: "rgba(255, 255, 255, 0.04)",
+        blockquoteBg: "#2C2C2E",
         blockquoteFg: "#E5E5EA",
-        borderSubtle: "rgba(255, 255, 255, 0.08)",
-        borderStrong: "rgba(255, 255, 255, 0.15)",
-        thHoverBg: "rgba(255, 255, 255, 0.05)",
-        rowHoverBg: "rgba(255, 255, 255, 0.03)",
-        caption: "#AEAEB2",
-        hrBorder: "rgba(255, 255, 255, 0.1)",
-        markBg: "rgba(255, 214, 0, 0.25)",
-        calloutDefault: "rgba(10, 132, 255, 0.14)",
-        calloutTip: "rgba(48, 209, 88, 0.14)",
-        calloutImportant: "rgba(191, 90, 242, 0.14)",
-        calloutWarning: "rgba(255, 159, 10, 0.14)",
-        calloutCaution: "rgba(255, 69, 58, 0.14)",
-        calloutAbstract: "rgba(100, 210, 255, 0.14)",
-        calloutExample: "rgba(94, 92, 230, 0.14)",
-        calloutQuote: "rgba(152, 152, 157, 0.14)",
-        calloutQuestion: "rgba(255, 214, 10, 0.14)",
-        tocBg: "rgba(255, 255, 255, 0.035)",
-        anchor: "rgba(255, 255, 255, 0.2)",
+        borderSubtle: "rgba(255, 255, 255, 0.10)",
+        borderStrong: "rgba(255, 255, 255, 0.18)",
+        thHoverBg: "rgba(255, 255, 255, 0.06)",
+        rowHoverBg: "rgba(255, 255, 255, 0.04)",
+        caption: "#A1A1A6",
+        hrBorder: "rgba(255, 255, 255, 0.14)",
+        markBg: "rgba(255, 214, 10, 0.32)",
+        calloutDefault: "#2C2C2E",
+        calloutTip: "#2C2C2E",
+        calloutImportant: "#2C2C2E",
+        calloutWarning: "rgba(255, 214, 10, 0.13)",
+        calloutCaution: "rgba(255, 69, 58, 0.16)",
+        calloutAbstract: "#2C2C2E",
+        calloutExample: "#2C2C2E",
+        calloutQuote: "rgba(255, 255, 255, 0.08)",
+        calloutQuestion: "#2C2C2E",
+        tocBg: "#2C2C2E",
+        anchor: "rgba(255, 214, 10, 0.30)",
         popoverBg: "#2C2C2E",
-        popoverCodeBg: "rgba(255, 255, 255, 0.08)",
-        popoverShadow1: "rgba(0, 0, 0, 0.35)",
+        popoverCodeBg: "#3A3A3C",
+        popoverShadow1: "rgba(0, 0, 0, 0.55)",
         popoverShadow2: "rgba(255, 255, 255, 0.08)",
-        frontmatterBg: "rgba(255, 255, 255, 0.04)",
+        frontmatterBg: "#2C2C2E",
         lightboxBg: "rgba(0, 0, 0, 0.75)",
         mermaidLightboxBg: "rgba(0, 0, 0, 0.85)",
         lightboxControlSurface: "rgba(40, 40, 40, 0.92)",
@@ -283,18 +288,17 @@ public struct PreviewPalette: Sendable {
     )
 
     /// Palette applied inside `@media print` (and inlined into `:root` when `forExport: true`).
-    /// Matches light, with two token differences preserved from the pre-tokenization `@media print` block:
-    /// softer `.md-tag` background and a slightly heavier `mark` highlight.
+    /// Matches light, with print-friendly tag and mark contrast.
     public static let print: PreviewPalette = {
         var p = PreviewPalette.light
-        p.tagBg = "rgba(58, 110, 165, 0.06)"
-        p.markBg = "rgba(255, 212, 0, 0.4)"
+        p.tagBg = "rgba(255, 204, 0, 0.10)"
+        p.markBg = "rgba(255, 204, 0, 0.45)"
         return p
     }()
 }
 
 public enum PreviewCSS {
-    private static let sansFontFamily = "\"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    private static let sansFontFamily = "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif"
     private static let monoFontFamily = "\"JetBrains Mono\", \"JetBrainsMono-Regular\", \"SF Mono\", SFMono-Regular, Menlo, monospace"
 
     /// Generates the preview/export stylesheet. Colors are driven by CSS custom properties defined in a
@@ -397,13 +401,14 @@ public enum PreviewCSS {
         body {
             font-family: \(bodyFontFamily);
             font-size: \(Int(fontSize))px;
-            line-height: 1.75;
+            line-height: 1.45;
+            font-weight: 400;
             max-width: \(bodyMaxWidth);
-            margin: 0 auto;
-            padding-top: max(40px, env(safe-area-inset-top));
-            padding-right: max(64px, env(safe-area-inset-right));
-            padding-bottom: max(80px, env(safe-area-inset-bottom));
-            padding-left: max(64px, env(safe-area-inset-left));
+            margin: 0;
+            padding-top: calc(env(safe-area-inset-top) + 42px);
+            padding-right: calc(env(safe-area-inset-right) + 40px);
+            padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
+            padding-left: calc(env(safe-area-inset-left) + 40px);
             color: var(--c-text);
             background-color: var(--c-bg);
             -webkit-font-smoothing: antialiased;
@@ -412,10 +417,10 @@ public enum PreviewCSS {
 
         h1, h2, h3, h4, h5, h6 {
             font-family: \(headingFontFamily);
-            line-height: 1.25;
-            margin-top: 2em;
-            margin-bottom: 0.75em;
-            letter-spacing: -0.015em;
+            line-height: 1.18;
+            margin-top: 1.2em;
+            margin-bottom: 0.35em;
+            letter-spacing: 0;
             position: relative;
         }
 
@@ -474,23 +479,28 @@ public enum PreviewCSS {
             font-size: 0.95em;
         }
 
-        h1 { font-size: 2.25em; font-weight: 700; letter-spacing: -0.025em; }
-        h2 { font-size: 1.625em; font-weight: 650; }
-        h3 { font-size: 1.3125em; font-weight: 600; }
-        h4 { font-size: 1.125em; font-weight: 600; }
+        h1 { font-size: 1.7em; font-weight: 700; }
+        h2 { font-size: 1.35em; font-weight: 700; }
+        h3 { font-size: 1.1em; font-weight: 700; }
+        h4 { font-size: 1em; font-weight: 700; }
         h5 { font-size: 1em; font-weight: 600; }
         h6 { font-size: 0.9375em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-heading-secondary); }
 
         p {
-            margin-bottom: 1.125em;
+            margin-bottom: 0.72em;
         }
 
         a {
             color: var(--c-link);
-            text-decoration: none;
+            text-decoration: underline;
+            text-decoration-color: color-mix(in srgb, var(--c-link) 45%, transparent);
+            text-underline-offset: 2px;
         }
         a:hover {
-            text-decoration: underline;
+            text-decoration-color: var(--c-link);
+        }
+        sup a, a.footnote-backref {
+            text-decoration: none;
         }
         .wiki-link {
             color: var(--c-wiki);
@@ -718,11 +728,12 @@ public enum PreviewCSS {
 
         blockquote {
             border: none;
-            background-color: var(--c-blockquote-bg);
-            border-radius: 8px;
-            padding: 0.75em 1.25em;
+            border-left: 3px solid var(--c-border-strong);
+            background-color: transparent;
+            border-radius: 0;
+            padding: 0.1em 0 0.1em 0.95em;
             margin-left: 0;
-            margin-bottom: 1.25em;
+            margin-bottom: 0.9em;
             color: var(--c-blockquote-fg);
         }
         blockquote > *:last-child {
@@ -730,28 +741,55 @@ public enum PreviewCSS {
         }
 
         ul, ol {
-            margin-bottom: 1em;
-            padding-left: 1.625em;
+            margin-bottom: 0.72em;
+            padding-left: 1.45em;
         }
 
         li {
-            margin-bottom: 0.3em;
+            margin-bottom: 0.18em;
         }
 
-        /* Task lists */
-        ul.contains-task-list {
+        /* Task lists. cmark-gfm emits plain <li><input type="checkbox">
+           without task-list classes, so hook on structure via :has(). */
+        ul:has(> li > input[type="checkbox"]) {
             list-style: none;
             padding-left: 0;
         }
 
-        li.task-list-item {
+        li:has(> input[type="checkbox"]) {
             display: flex;
-            align-items: baseline;
+            align-items: flex-start;
             gap: 0.5em;
         }
 
-        li.task-list-item input[type="checkbox"] {
+        /* Notes-style circular checkboxes: gray ring, filled yellow with a
+           dark check when done (black-on-yellow reads better than white at
+           small sizes). Drawn as a background SVG because WebKit doesn't
+           render ::after on inputs. */
+        li > input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 1.2em;
+            height: 1.2em;
             margin: 0;
+            /* Center the circle on the first text line: (line-height − circle) / 2. */
+            margin-top: calc((1.45em - 1.2em) / 2);
+            flex-shrink: 0;
+            border: 1.5px solid color-mix(in srgb, var(--c-text) 30%, transparent);
+            border-radius: 50%;
+            background-color: transparent;
+            cursor: pointer;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        li > input[type="checkbox"]:checked {
+            border-color: var(--c-accent);
+            background-color: var(--c-accent);
+            background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"%3E%3Cpath d="M4.2 8.6l2.5 2.5 5.1-5.7" fill="none" stroke="%231C1C1E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/%3E%3C/svg%3E');
+            background-size: 78% 78%;
+            background-position: center;
+            background-repeat: no-repeat;
         }
 
         /* Tables */
@@ -778,6 +816,7 @@ public enum PreviewCSS {
 
         table {
             border-collapse: collapse;
+            border: 1px solid var(--c-border-subtle);
             width: 100%;
             font-variant-numeric: tabular-nums;
         }
@@ -786,6 +825,11 @@ public enum PreviewCSS {
             padding: 0.625em 0.875em;
             max-width: 20em;
             overflow-wrap: break-word;
+        }
+
+        /* Notes tables are a full grid, not just row rules */
+        th + th, td + td {
+            border-left: 1px solid var(--c-border-subtle);
         }
 
         thead {
@@ -937,6 +981,9 @@ public enum PreviewCSS {
         .callout-content blockquote { border-left: none; padding-left: 0; color: inherit; }
 
         details.callout > summary { cursor: pointer; list-style: none; }
+        /* Collapsed foldable callouts: drop the title's bottom margin so the
+           summary sits vertically centered in the card. */
+        details.callout:not([open]) > summary { margin-bottom: 0; }
         details.callout > summary::-webkit-details-marker { display: none; }
         details.callout > summary::before { content: "▶"; font-size: 0.7em; margin-right: 0.3em; transition: transform 0.2s; display: inline-block; }
         details.callout[open] > summary::before { transform: rotate(90deg); }
@@ -977,7 +1024,14 @@ public enum PreviewCSS {
         }
         .toc > ul { padding-left: 0; }
         .toc li { margin-bottom: 0.15em; }
-        .toc a { font-size: 0.9em; }
+        .toc a {
+            color: var(--c-text);
+            font-size: 0.9em;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            color: var(--c-link);
+        }
 
         /* Heading anchor links */
         .heading-anchor {
@@ -1282,6 +1336,7 @@ public enum PreviewCSS {
             ("--c-text", palette.text),
             ("--c-heading-secondary", palette.headingSecondary),
             ("--c-bg", palette.background),
+            ("--c-accent", palette.accent),
             ("--c-link", palette.link),
             ("--c-wiki", palette.wiki),
             ("--c-wiki-border", palette.wikiBorder),

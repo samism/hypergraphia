@@ -47,7 +47,7 @@ public enum Theme {
     public static var editorFontSwiftUI: Font { sansFont(size: editorFontSize) }
 
     public static func sansFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.custom("Helvetica Neue", size: size).weight(weight)
+        Font.system(size: size, weight: weight)
     }
 
     public static func monoFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
@@ -126,6 +126,12 @@ public enum Theme {
 
     public static var accentColorSwiftUI: Color { Color(platformColor: accentColor) }
 
+    /// Accent for text and small glyphs on chrome surfaces. System yellow is
+    /// illegible at text weight on light backgrounds, so this resolves to the
+    /// darker gold of the Link asset in light mode and the full yellow in dark.
+    /// Use `accentColorSwiftUI` for fills and tints, this for foregrounds.
+    public static var accentForegroundColorSwiftUI: Color { Color(platformColor: linkColor) }
+
     // MARK: - Panel Backgrounds
 
     public static let sidebarBackground = PlatformColor.clearlyAsset(named: "SidebarBackground")
@@ -151,6 +157,7 @@ public enum Theme {
     public static let selectionOpacityDark: Double = 0.22
 
     /// Color-scheme-aware separator line color (`Color.primary` modulated by the scheme's opacity).
+    /// Notes keeps separators neutral; the yellow accent is reserved for interactive elements.
     public static func separatorColor(inDark isDark: Bool) -> Color {
         Color.primary.opacity(isDark ? separatorOpacityDark : separatorOpacity)
     }
@@ -164,7 +171,7 @@ public enum Theme {
     /// `TabBarView`'s `tabBackground` derivation — light: subtle primary tint,
     /// dark: translucent sidebar background.
     public static func tabBarBackgroundColor(inDark isDark: Bool) -> Color {
-        isDark ? sidebarBackgroundSwiftUI.opacity(0.6) : Color.primary.opacity(0.04)
+        isDark ? sidebarBackgroundSwiftUI : sidebarBackgroundSwiftUI.opacity(0.95)
     }
 
     // MARK: - Folder Colors

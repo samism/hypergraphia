@@ -58,42 +58,54 @@ final class PreviewCSSTests: XCTestCase {
 
     func testStylesheetUsesPreferredFonts() {
         let sheet = PreviewCSS.css()
-        XCTAssertTrue(sheet.contains("font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;"))
+        XCTAssertTrue(sheet.contains("font-family: -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif;"))
         XCTAssertTrue(sheet.contains("font-family: \"JetBrains Mono\", \"JetBrainsMono-Regular\", \"SF Mono\", SFMono-Regular, Menlo, monospace;"))
     }
 
-    // MARK: - Palette value checks (ensures light/dark/print match pre-tokenization values)
+    // MARK: - Palette value checks
 
-    func testLightPaletteValuesMatchPreTokenizationPreview() {
+    func testLightPaletteUsesNotesColors() {
         let p = PreviewPalette.light
-        XCTAssertEqual(p.text, "#1D1D1F")
+        XCTAssertEqual(p.text, "#1C1C1E")
         XCTAssertEqual(p.background, "#FFFFFF")
-        XCTAssertEqual(p.link, "#0071E3")
-        XCTAssertEqual(p.wiki, "#34855A")
-        XCTAssertEqual(p.wikiBroken, "#B35C3A")
-        XCTAssertEqual(p.tag, "#3A6EA5")
-        XCTAssertEqual(p.preBg, "#F5F5F7")
-        XCTAssertEqual(p.codeFilenameBg, "#EDEDF0")
+        XCTAssertEqual(p.accent, "#FFCC00")
+        XCTAssertEqual(p.link, "#997000")
+        XCTAssertEqual(p.wiki, "#997000")
+        XCTAssertEqual(p.wikiBroken, "#6E5200")
+        XCTAssertEqual(p.tag, "#997000")
+        XCTAssertEqual(p.tagBg, "rgba(0, 0, 0, 0.05)")
+        XCTAssertEqual(p.preBg, "#F2F2F7")
+        XCTAssertEqual(p.codeFilenameBg, "#F2F2F7")
         XCTAssertEqual(p.btnSuccess, "#34C759")
-        XCTAssertEqual(p.markBg, "rgba(255, 212, 0, 0.3)")
+        XCTAssertEqual(p.tocBg, "rgba(0, 0, 0, 0.05)")
+        XCTAssertEqual(p.calloutWarning, "rgba(255, 204, 0, 0.14)")
+        XCTAssertEqual(p.calloutCaution, "rgba(255, 59, 48, 0.09)")
+        XCTAssertEqual(p.markBg, "rgba(255, 204, 0, 0.35)")
     }
 
-    func testDarkPaletteValuesMatchPreTokenizationPreview() {
+    func testDarkPaletteUsesNotesColors() {
         let p = PreviewPalette.dark
-        XCTAssertEqual(p.text, "#F5F5F7")
-        XCTAssertEqual(p.background, "#323236")
-        XCTAssertEqual(p.link, "#0A84FF")
-        XCTAssertEqual(p.wiki, "#5ABF80")
+        XCTAssertEqual(p.text, "#F2F2F7")
+        XCTAssertEqual(p.background, "#1C1C1E")
+        XCTAssertEqual(p.accent, "#FFD60A")
+        XCTAssertEqual(p.link, "#FFD60A")
+        XCTAssertEqual(p.wiki, "#FFD60A")
+        XCTAssertEqual(p.preBg, "#2C2C2E")
+        XCTAssertEqual(p.codeFilenameFg, "#A1A1A6")
+        XCTAssertEqual(p.tocBg, "#2C2C2E")
+        XCTAssertEqual(p.calloutDefault, "#2C2C2E")
+        XCTAssertEqual(p.calloutWarning, "rgba(255, 214, 10, 0.13)")
+        XCTAssertEqual(p.calloutCaution, "rgba(255, 69, 58, 0.16)")
         XCTAssertEqual(p.popoverBg, "#2C2C2E")
         XCTAssertEqual(p.btnSuccess, "#30D158")
-        XCTAssertEqual(p.markBg, "rgba(255, 214, 0, 0.25)")
+        XCTAssertEqual(p.markBg, "rgba(255, 214, 10, 0.32)")
     }
 
     func testPrintPaletteDiffersFromLightInTagBgAndMarkBg() {
         let light = PreviewPalette.light
         let print = PreviewPalette.print
-        XCTAssertEqual(print.tagBg, "rgba(58, 110, 165, 0.06)")
-        XCTAssertEqual(print.markBg, "rgba(255, 212, 0, 0.4)")
+        XCTAssertEqual(print.tagBg, "rgba(255, 204, 0, 0.10)")
+        XCTAssertEqual(print.markBg, "rgba(255, 204, 0, 0.45)")
         // Everything else should match light.
         XCTAssertEqual(print.text, light.text)
         XCTAssertEqual(print.background, light.background)
@@ -110,9 +122,9 @@ final class PreviewCSSTests: XCTestCase {
         let rootStart = sheet.range(of: ":root {")!.upperBound
         let rootEnd = sheet.range(of: "\n}", range: rootStart..<sheet.endIndex)!.lowerBound
         let baseRoot = String(sheet[rootStart..<rootEnd])
-        XCTAssertTrue(baseRoot.contains("--c-tag-bg: rgba(58, 110, 165, 0.06);"),
+        XCTAssertTrue(baseRoot.contains("--c-tag-bg: rgba(255, 204, 0, 0.10);"),
                       "forExport should inline print tag-bg into base :root")
-        XCTAssertTrue(baseRoot.contains("--c-mark-bg: rgba(255, 212, 0, 0.4);"),
+        XCTAssertTrue(baseRoot.contains("--c-mark-bg: rgba(255, 204, 0, 0.45);"),
                       "forExport should inline print mark-bg into base :root")
     }
 
@@ -135,6 +147,42 @@ final class PreviewCSSTests: XCTestCase {
         XCTAssertTrue(sheet.contains("env(safe-area-inset-right)"))
         XCTAssertTrue(sheet.contains("env(safe-area-inset-bottom)"))
         XCTAssertTrue(sheet.contains("env(safe-area-inset-left)"))
+    }
+
+    func testStylesheetUsesNotesDocumentRhythm() {
+        let sheet = PreviewCSS.css()
+        XCTAssertTrue(sheet.contains("line-height: 1.45;"))
+        XCTAssertTrue(sheet.contains("max-width: 61em;"))
+        XCTAssertTrue(sheet.contains("margin: 0;"))
+        XCTAssertTrue(sheet.contains("h1 { font-size: 1.7em; font-weight: 700; }"))
+        // TOC entries are body-colored, not link-colored (indent matches the
+        // emitted stylesheet, where the literal's 8-space baseline is stripped).
+        XCTAssertTrue(sheet.contains("color: var(--c-text);\n    font-size: 0.9em;"))
+        // Collapsed foldable callouts drop the summary's bottom margin.
+        XCTAssertTrue(sheet.contains("details.callout:not([open]) > summary { margin-bottom: 0; }"))
+    }
+
+    func testNotesSignatureElements() {
+        let sheet = PreviewCSS.css()
+        // Accent token emitted for both schemes.
+        XCTAssertTrue(sheet.contains("--c-accent: #FFCC00;"))
+        XCTAssertTrue(sheet.contains("--c-accent: #FFD60A;"))
+        // Round checkboxes filled with the accent when checked.
+        XCTAssertTrue(sheet.contains("border-radius: 50%;"))
+        XCTAssertTrue(sheet.contains("background-color: var(--c-accent);"))
+        // Blockquote is a left bar, not a filled box.
+        XCTAssertTrue(sheet.contains("border-left: 3px solid var(--c-border-strong);"))
+        // Links carry a soft gold underline.
+        XCTAssertTrue(sheet.contains("text-underline-offset: 2px;"))
+        // Tables render a full grid.
+        XCTAssertTrue(sheet.contains("th + th, td + td {"))
+    }
+
+    func testBodyMaxWidthIsPassedThroughUnclamped() {
+        // "none" (Mac default) must stay "none" — Notes runs text at full window
+        // width — and the editor-width-match calc must survive untouched.
+        XCTAssertTrue(PreviewCSS.css(bodyMaxWidth: "none").contains("max-width: none;"))
+        XCTAssertTrue(PreviewCSS.css(bodyMaxWidth: "calc(38em + 80px)").contains("max-width: calc(38em + 80px);"))
     }
 
     // MARK: - cssHexString helper
