@@ -1,26 +1,13 @@
 import SwiftUI
 import HypergraphiaCore
 
+/// Outline-mode sidebar content. Header and background live in `SidebarView`.
 struct OutlineView: View {
     @ObservedObject var outlineState: OutlineState
     var isEditorVisible: Bool
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("OUTLINE")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.tertiary)
-                .tracking(1.5)
-                .padding(.horizontal, 12)
-                .padding(.top, 10)
-                .padding(.bottom, 6)
-
-            Rectangle()
-                .fill(Theme.separatorColor(inDark: colorScheme == .dark))
-                .frame(height: 1)
-                .padding(.horizontal, 12)
-
             if outlineState.headings.isEmpty {
                 Spacer()
                 VStack(spacing: 8) {
@@ -50,7 +37,6 @@ struct OutlineView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.outlinePanelBackgroundSwiftUI)
     }
 }
 

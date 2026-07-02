@@ -108,13 +108,13 @@ struct BottomToolbar: View {
         Button {
             outlineState.isVisible.toggle()
         } label: {
-            Image(systemName: "list.bullet.indent")
+            Image(systemName: "sidebar.left")
                 .font(.system(size: 13, weight: .medium))
         }
         .buttonStyle(BottomToolbarIconStyle(isActive: outlineState.isVisible))
         .frame(width: 28, height: 28)
-        .help("Toggle outline")
-        .accessibilityLabel("Toggle outline")
+        .help("Toggle sidebar")
+        .accessibilityLabel("Toggle sidebar")
         .accessibilityAddTraits(outlineState.isVisible ? .isSelected : [])
     }
 
@@ -141,7 +141,7 @@ struct BottomToolbar: View {
         Button {
             outlineState.isVisible.toggle()
         } label: {
-            Image(systemName: "list.bullet.indent")
+            Image(systemName: "sidebar.left")
                 .font(.system(size: 13, weight: .medium))
                 .frame(width: 32, height: 32)
                 .contentShape(Circle())
@@ -153,8 +153,8 @@ struct BottomToolbar: View {
                 : .regular.interactive(),
             in: .circle
         )
-        .help("Toggle outline")
-        .accessibilityLabel("Toggle outline")
+        .help("Toggle sidebar")
+        .accessibilityLabel("Toggle sidebar")
         .accessibilityAddTraits(outlineState.isVisible ? .isSelected : [])
     }
 

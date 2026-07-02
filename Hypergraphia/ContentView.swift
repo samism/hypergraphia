@@ -10,7 +10,9 @@ struct ContentView: View {
     let fileURL: URL?
 
     @State private var viewMode: ViewMode
+    @State private var sidebarMode: SidebarMode = .outline
     @StateObject private var outlineState = OutlineState()
+    @StateObject private var folderState = FolderState()
     @StateObject private var findState = FindState()
     @StateObject private var jumpToLineState = JumpToLineState()
     @StateObject private var statusBarState = StatusBarState()
@@ -65,8 +67,14 @@ struct ContentView: View {
 
             HStack(spacing: 0) {
                 if outlineState.isVisible {
-                    OutlineView(outlineState: outlineState, isEditorVisible: viewMode == .edit)
-                        .frame(width: 240)
+                    SidebarView(
+                        mode: $sidebarMode,
+                        outlineState: outlineState,
+                        folderState: folderState,
+                        isEditorVisible: viewMode == .edit,
+                        fileURL: fileURL
+                    )
+                    .frame(width: 240)
                 }
 
                 mainPane
@@ -115,9 +123,17 @@ struct ContentView: View {
         .focusedSceneValue(\.viewMode, $viewMode)
         .focusedSceneValue(\.exportPDFAction) { exportPDF() }
         .focusedSceneValue(\.printDocumentAction) { printDocument() }
+        .focusedSceneValue(\.openFolderAction) { openFolder() }
         .onAppear {
             outlineState.parseHeadings(from: document.text)
             statusBarState.updateText(document.text)
+            // Window opened from another window's folder sidebar: orient this
+            // window to the same folder.
+            if let folder = FolderHandoff.claim(for: fileURL) {
+                folderState.open(folder: folder)
+                sidebarMode = .folder
+                outlineState.isVisible = true
+            }
         }
         .onChange(of: document.text) { _, newText in
             outlineState.parseHeadings(from: newText)
@@ -219,6 +235,14 @@ struct ContentView: View {
         var newLines = lines
         newLines[line - 1] = updated
         document.text = newLines.joined(separator: "\n")
+    }
+
+    /// File ▸ Open Folder…: orient this window's sidebar to a chosen folder.
+    private func openFolder() {
+        guard let url = FolderPanel.choose() else { return }
+        folderState.open(folder: url)
+        sidebarMode = .folder
+        outlineState.isVisible = true
     }
 
     private func exportPDF() {

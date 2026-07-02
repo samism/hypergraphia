@@ -418,6 +418,9 @@ struct HypergraphiaApp: App {
                 CheckForUpdatesView(updater: updaterController.updater)
                 #endif
             }
+            CommandGroup(after: .newItem) {
+                OpenFolderCommand()
+            }
             CommandGroup(replacing: .printItem) {
                 ExportPrintCommands()
             }
@@ -579,6 +582,10 @@ private struct ExportPDFActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
 
+private struct OpenFolderActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
 private struct PrintDocumentActionKey: FocusedValueKey {
     typealias Value = () -> Void
 }
@@ -599,6 +606,10 @@ extension FocusedValues {
     var exportPDFAction: (() -> Void)? {
         get { self[ExportPDFActionKey.self] }
         set { self[ExportPDFActionKey.self] = newValue }
+    }
+    var openFolderAction: (() -> Void)? {
+        get { self[OpenFolderActionKey.self] }
+        set { self[OpenFolderActionKey.self] = newValue }
     }
     var printDocumentAction: (() -> Void)? {
         get { self[PrintDocumentActionKey.self] }
@@ -627,6 +638,17 @@ struct ExportPrintCommands: View {
     }
 }
 
+struct OpenFolderCommand: View {
+    @FocusedValue(\.openFolderAction) var openFolderAction
+
+    var body: some View {
+        Button("Open Folder…") {
+            openFolderAction?()
+        }
+        .disabled(openFolderAction == nil)
+    }
+}
+
 struct FindCommand: View {
     @FocusedValue(\.findState) var findState
 
@@ -646,7 +668,7 @@ struct OutlineToggleCommand: View {
         Button {
             outlineState?.isVisible.toggle()
         } label: {
-            Label("Toggle Outline", systemImage: "list.bullet.indent")
+            Label("Toggle Sidebar", systemImage: "sidebar.left")
         }
         .keyboardShortcut("o", modifiers: [.command, .shift])
         .disabled(outlineState == nil)
