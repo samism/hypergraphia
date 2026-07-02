@@ -364,6 +364,9 @@ struct PreviewView: NSViewRepresentable {
         /// The exact markdown the current DOM was rendered from — sourcepos
         /// line numbers in the page are only valid against this text.
         var renderedMarkdown = ""
+        /// After a block deletion, reopen the block at/above this line once
+        /// the reload lands (continues the Backspace-into-previous-block flow).
+        var pendingLiveEditLine: Int?
         var skipNextReload = false
         var isLoadingContent = false
         var pendingScrollLine: Int?
@@ -716,6 +719,12 @@ struct PreviewView: NSViewRepresentable {
             if lastMode == .live {
                 webView.evaluateJavaScript("window.clearlySetLiveMode && window.clearlySetLiveMode(true)")
             }
+            if let line = pendingLiveEditLine {
+                pendingLiveEditLine = nil
+                if lastMode == .live {
+                    webView.evaluateJavaScript("window.clearlyEditBlockAtLine && window.clearlyEditBlockAtLine(\(line))")
+                }
+            }
             // Restore scroll position after HTML reload
             if scrollFraction > 0.01 {
                 let js = "var ms=Math.max(1,document.body.scrollHeight-window.innerHeight);window.scrollTo(0,\(scrollFraction)*ms);"
@@ -816,6 +825,19 @@ struct PreviewView: NSViewRepresentable {
                     guard let text = body["text"] as? String else { return }
                     DispatchQueue.main.async { [weak self] in
                         self?.onLiveAppend?(text)
+                    }
+                case "deleteBlock":
+                    guard let start = body["start"] as? Int,
+                          let end = body["end"] as? Int,
+                          let original = body["original"] as? String,
+                          let deletion = LiveEditSupport.blockDeletion(
+                              in: renderedMarkdown, start: start, end: end, original: original
+                          ) else { return }
+                    if deletion.previousLine > 0 {
+                        pendingLiveEditLine = deletion.previousLine
+                    }
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onLiveEdit?(deletion.start, deletion.end, deletion.original, "")
                     }
                 default:
                     break
