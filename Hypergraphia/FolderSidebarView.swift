@@ -376,6 +376,36 @@ func setDocumentTitle(_ document: NSDocument?, for url: URL?) {
     document?.displayName = title
     document?.windowControllers.compactMap(\.window).forEach { window in
         window.title = title
+        configureDocumentWindowChrome(window)
+    }
+}
+
+@MainActor
+func configureDocumentWindowChrome(_ window: NSWindow?) {
+    guard let window else { return }
+
+    window.titleVisibility = .visible
+    window.titlebarAppearsTransparent = false
+    window.styleMask.remove(.fullSizeContentView)
+    hideNativeTabAddButton(in: window)
+
+    Task { @MainActor [weak window] in
+        hideNativeTabAddButton(in: window)
+    }
+}
+
+@MainActor
+private func hideNativeTabAddButton(in window: NSWindow?) {
+    guard let tabGroup = window?.tabGroup else { return }
+    let selector = NSSelectorFromString("plusTab")
+    guard tabGroup.responds(to: selector),
+          let plus = tabGroup.perform(selector)?.takeUnretainedValue() as? NSView else { return }
+
+    // ponytail: AppKit exposes tab groups but not a public switch for the
+    // native tab-bar add button. Replace this if Hypergraphia gets custom tabs.
+    plus.isHidden = true
+    if let control = plus as? NSControl {
+        control.isEnabled = false
     }
 }
 
@@ -404,6 +434,8 @@ func openMarkdownDocument(at url: URL, from folder: URL?, tabbingInto sourceWind
         if sourceWindow.tabbedWindows?.contains(where: { $0 === targetWindow }) != true {
             sourceWindow.addTabbedWindow(targetWindow, ordered: .above)
         }
+        configureDocumentWindowChrome(sourceWindow)
+        configureDocumentWindowChrome(targetWindow)
         targetWindow.makeKeyAndOrderFront(nil)
     }
 }

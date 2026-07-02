@@ -288,7 +288,10 @@ private struct WindowTitleSetter: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async { [weak nsView] in
             let title = displayTitle(for: fileURL)
-            nsView?.window?.title = title
+            if let window = nsView?.window {
+                window.title = title
+                configureDocumentWindowChrome(window)
+            }
 
             guard let target = fileURL?.standardizedFileURL else { return }
             let document = NSDocumentController.shared.documents.first { document in
