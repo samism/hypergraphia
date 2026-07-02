@@ -39,6 +39,8 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        NSWindow.allowsAutomaticWindowTabbing = false
+
         // Avoid Dock-icon flash when the user launches with the toggle on.
         // The `didBecomeMain` observer flips us back to `.regular` once a
         // document window appears (Finder-open, untitled-on-launch, etc.).
