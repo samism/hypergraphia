@@ -85,18 +85,18 @@ final class PreviewCSSTests: XCTestCase {
 
     func testDarkPaletteUsesNotesColors() {
         let p = PreviewPalette.dark
-        XCTAssertEqual(p.text, "#F2F2F7")
-        XCTAssertEqual(p.background, "#1C1C1E")
+        XCTAssertEqual(p.text, "#DEDEDF")
+        XCTAssertEqual(p.background, "#1E1E1E")
         XCTAssertEqual(p.accent, "#FFD60A")
         XCTAssertEqual(p.link, "#FFD60A")
         XCTAssertEqual(p.wiki, "#FFD60A")
-        XCTAssertEqual(p.preBg, "#2C2C2E")
-        XCTAssertEqual(p.codeFilenameFg, "#A1A1A6")
-        XCTAssertEqual(p.tocBg, "#2C2C2E")
-        XCTAssertEqual(p.calloutDefault, "#2C2C2E")
+        XCTAssertEqual(p.preBg, "#27272D")
+        XCTAssertEqual(p.codeFilenameFg, "#9E9EA0")
+        XCTAssertEqual(p.tocBg, "#27272D")
+        XCTAssertEqual(p.calloutDefault, "#27272D")
         XCTAssertEqual(p.calloutWarning, "rgba(255, 214, 10, 0.13)")
         XCTAssertEqual(p.calloutCaution, "rgba(255, 69, 58, 0.16)")
-        XCTAssertEqual(p.popoverBg, "#2C2C2E")
+        XCTAssertEqual(p.popoverBg, "#27272D")
         XCTAssertEqual(p.btnSuccess, "#30D158")
         XCTAssertEqual(p.markBg, "rgba(255, 214, 10, 0.32)")
     }
