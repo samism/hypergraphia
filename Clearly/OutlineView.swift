@@ -85,6 +85,7 @@ private struct HeadingRow: View {
                 .padding(.vertical, 5)
         }
         .buttonStyle(.plain)
+        .pointerStyle(.link)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isHovered
