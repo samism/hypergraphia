@@ -24,7 +24,7 @@ Version numbers on the two platforms are unrelated.
 
 ## What This Is
 
-Clearly is a native markdown editor — Mac (AppKit + SwiftUI) and iOS (UIKit + SwiftUI). Both apps are document-based: SwiftUI's `DocumentGroup` owns the scene, one window per `.md` file. Two view modes per document: a syntax-highlighted editor (NSTextView / TextKit-1 UITextView) and a read-only WKWebView preview. The Mac app also ships a QuickLook extension (`ClearlyQuickLook`) for previewing markdown files in Finder.
+Hypergraphia (product name; targets, schemes, paths, and bundle ids still say Clearly) is a native markdown editor — Mac (AppKit + SwiftUI) and iOS (UIKit + SwiftUI). Both apps are document-based: SwiftUI's `DocumentGroup` owns the scene, one window per `.md` file. Two view modes per document: a syntax-highlighted editor (NSTextView / TextKit-1 UITextView) and a read-only WKWebView preview. The Mac app also ships a QuickLook extension (`ClearlyQuickLook`) for previewing markdown files in Finder.
 
 There is intentionally **no** vault index, sync, AI, MCP server, sidebar, wiki-links, tags, backlinks, or command palette. If you're tempted to add infrastructure for any of those, push back — keeping this app boring is the point.
 
@@ -118,7 +118,7 @@ The `.md` QuickLook preview, Finder column-view preview, and "default app for `.
 
 - **`qlmanage` CLI is broken on macOS 26 for `.appex` previews.** It crashes inside `EXConcreteExtension makeExtensionContextAndXPCConnectionForRequest` with "key cannot be nil." Don't trust it for verification. The actual `quicklookd` daemon (used by Finder spacebar / column-view) handles XPC correctly. Spacebar in Finder is the only reliable test.
 - **`qlmanage -m plugins` only lists legacy `.qlgenerator` bundles, not `.appex` extensions.** Empty results for markdown there are *normal*, not diagnostic.
-- **`quicklookd` on macOS 26 won't invoke an `.appex` whose parent app isn't notarized+stapled.** `scripts/release.sh --dry-run` skips notarization, so its output cannot fully verify QL behavior. To test locally without cutting a real release: `release.sh --dry-run <ver>` → `cp -R build/export/Clearly.app /Applications/Clearly.app` → `ditto -c -k --keepParent /Applications/Clearly.app /tmp/x.zip` → `xcrun notarytool submit /tmp/x.zip --keychain-profile AC_PASSWORD --wait` → `xcrun stapler staple /Applications/Clearly.app` → `qlmanage -r && qlmanage -r cache` → spacebar in Finder.
+- **`quicklookd` on macOS 26 won't invoke an `.appex` whose parent app isn't notarized+stapled.** `scripts/release.sh --dry-run` skips notarization, so its output cannot fully verify QL behavior. To test locally without cutting a real release: `release.sh --dry-run <ver>` → `cp -R build/export/Hypergraphia.app /Applications/Hypergraphia.app` → `ditto -c -k --keepParent /Applications/Hypergraphia.app /tmp/x.zip` → `xcrun notarytool submit /tmp/x.zip --keychain-profile AC_PASSWORD --wait` → `xcrun stapler staple /Applications/Hypergraphia.app` → `qlmanage -r && qlmanage -r cache` → spacebar in Finder.
 - **Conductor parallel worktrees pollute LaunchServices** with hundreds of stale `Clearly Dev.app` registrations from old DerivedData paths. `lsregister -kill` was removed in macOS 15+; the working recipe is `lsregister -u <path>` per stale path. Stale entries don't affect end users (they don't have worktrees), but they make local verification a minefield because the wrong bundle can win the UTI binding.
 - **Default-opener override on a polluted Mac:** Right-click `.md` → Get Info → Open with → Clearly → "Change All…". Programmatic equivalent: `LSSetDefaultRoleHandlerForContentType("net.daringfireball.markdown" as CFString, .all, "com.sabotage.clearly" as CFString)` (note: has propagation delay; `touch` + `mdimport` to refresh the file's `kMDItemContentType` cache may be needed before `urlForApplication(toOpen:)` reflects the change).
 
@@ -137,7 +137,7 @@ The Mac app ships through two channels from the same codebase:
 
 **Sparkle + sandboxing gotchas:**
 - Xcode strips `temporary-exception` entitlements during `xcodebuild archive` + export. The release script works around this by re-signing the exported app with the resolved entitlements and verifying they're present before creating the DMG.
-- Verify entitlements on the **exported** app (`codesign -d --entitlements :- build/export/Clearly.app`), not the local Debug build.
+- Verify entitlements on the **exported** app (`codesign -d --entitlements :- build/export/Hypergraphia.app`), not the local Debug build.
 - `SUEnableInstallerLauncherService` in Info.plist must stay `YES` — without it, Sparkle can't launch the installer in a sandboxed app.
 - Don't copy Sparkle's XPC services to `Contents/XPCServices/` — that's the old Sparkle 1.x approach. Sparkle 2.x bundles them inside the framework.
 

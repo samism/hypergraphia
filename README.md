@@ -1,20 +1,20 @@
 <p align="center">
-  <img src="website/icon.png" width="128" height="128" alt="Clearly icon" />
+  <img src="website/icon.png" width="128" height="128" alt="Hypergraphia icon" />
 </p>
 
-<h1 align="center">Clearly</h1>
+<h1 align="center">Hypergraphia</h1>
 
 <p align="center">A native markdown editor for Mac and iPhone.</p>
 
 <p align="center">
   <a href="https://apps.apple.com/app/clearly-markdown/id6760669470">Mac App Store</a> &middot;
-  <a href="https://github.com/Shpigford/clearly/releases/latest/download/Clearly.dmg">Direct Download</a> &middot;
+  <a href="https://github.com/Shpigford/clearly/releases/latest/download/Hypergraphia.dmg">Direct Download</a> &middot;
   <a href="https://clearly.md">Website</a> &middot;
   <a href="https://x.com/Shpigford">@Shpigford</a>
 </p>
 
 <p align="center">
-  <img src="website/screenshots/screenshot-1.jpg" width="720" alt="Clearly — markdown editor with live preview" />
+  <img src="website/screenshots/screenshot-1.jpg" width="720" alt="Hypergraphia — markdown editor with live preview" />
 </p>
 
 Open a `.md` file. Write with syntax highlighting. Toggle to preview. That's it. Native macOS and iOS, no Electron, no subscriptions, no telemetry.
