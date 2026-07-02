@@ -367,6 +367,9 @@ struct PreviewView: NSViewRepresentable {
         /// After a block deletion, reopen the block at/above this line once
         /// the reload lands (continues the Backspace-into-previous-block flow).
         var pendingLiveEditLine: Int?
+        /// Whether the reopened editor starts cleared (selection delete keeps
+        /// one block, emptied).
+        var pendingLiveEditClear = false
         var skipNextReload = false
         var isLoadingContent = false
         var pendingScrollLine: Int?
@@ -720,9 +723,11 @@ struct PreviewView: NSViewRepresentable {
                 webView.evaluateJavaScript("window.clearlySetLiveMode && window.clearlySetLiveMode(true)")
             }
             if let line = pendingLiveEditLine {
+                let clear = pendingLiveEditClear
                 pendingLiveEditLine = nil
+                pendingLiveEditClear = false
                 if lastMode == .live {
-                    webView.evaluateJavaScript("window.clearlyEditBlockAtLine && window.clearlyEditBlockAtLine(\(line))")
+                    webView.evaluateJavaScript("window.clearlyEditBlockAtLine && window.clearlyEditBlockAtLine(\(line), \(clear))")
                 }
             }
             // Restore scroll position after HTML reload
@@ -833,11 +838,27 @@ struct PreviewView: NSViewRepresentable {
                           let deletion = LiveEditSupport.blockDeletion(
                               in: renderedMarkdown, start: start, end: end, original: original
                           ) else { return }
-                    if deletion.previousLine > 0 {
+                    let reopen = body["reopen"] as? Bool ?? true
+                    if reopen, deletion.previousLine > 0 {
                         pendingLiveEditLine = deletion.previousLine
+                        pendingLiveEditClear = false
                     }
                     DispatchQueue.main.async { [weak self] in
                         self?.onLiveEdit?(deletion.start, deletion.end, deletion.original, "")
+                    }
+                case "deleteBlockRange":
+                    guard let first = body["first"] as? String,
+                          let last = body["last"] as? String,
+                          let keep = LiveEditSupport.lineRange(fromSourcepos: first),
+                          let target = LiveEditSupport.lineRange(fromSourcepos: last),
+                          target.upperBound > keep.upperBound,
+                          let plan = LiveEditSupport.rangeDeletion(
+                              in: renderedMarkdown, keepEnd: keep.upperBound, deleteEnd: target.upperBound
+                          ) else { return }
+                    pendingLiveEditLine = keep.lowerBound
+                    pendingLiveEditClear = true
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onLiveEdit?(plan.start, plan.end, plan.original, "")
                     }
                 default:
                     break
