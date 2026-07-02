@@ -1,11 +1,11 @@
 import UIKit
-import ClearlyCore
+import HypergraphiaCore
 
 /// UITextView configured for markdown editing: editor typing attributes,
 /// background/tint, autocorrect/smart-quote disabled, vault-appropriate insets.
 /// The highlighter is owned by `EditorView_iOS.Coordinator`, mirroring the Mac pattern
 /// where highlighting is driven by the delegate rather than the view.
-final class ClearlyUITextView: UITextView {
+final class HypergraphiaUITextView: UITextView {
 
     /// Path of the open `.md` document. Set by `EditorView_iOS` each update
     /// pass so paste/drop handlers can compute sibling image URLs.

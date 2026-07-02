@@ -4,7 +4,7 @@ import AppKit
 #elseif os(iOS)
 import UIKit
 #endif
-@testable import ClearlyCore
+@testable import HypergraphiaCore
 
 final class ThemeFontTests: XCTestCase {
     func testEditorFontTokensUsePreferredFamilies() {

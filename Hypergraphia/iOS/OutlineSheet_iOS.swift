@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 /// Shows every ATX / Setext heading in the current document. Tapping a row
 /// dismisses the sheet and calls `outlineState.scrollToRange?(heading.range)`;

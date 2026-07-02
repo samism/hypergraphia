@@ -53,13 +53,13 @@ struct ScratchpadMenuBar: View {
         .keyboardShortcut(",", modifiers: [.command])
 
         Button("Quit Hypergraphia") {
-            ClearlyAppDelegate.shared?.requestFullQuitFromMenuBar()
+            HypergraphiaAppDelegate.shared?.requestFullQuitFromMenuBar()
         }
     }
 
     private func performMenuBarAction(_ action: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            ClearlyAppDelegate.shared?.ensureRegularAndActivate()
+            HypergraphiaAppDelegate.shared?.ensureRegularAndActivate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 action()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -71,8 +71,8 @@ struct ScratchpadMenuBar: View {
 
     private func performSettingsMenuBarAction() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            ClearlyAppDelegate.shared?.prepareForMenuBarSettingsActivation()
-            ClearlyAppDelegate.shared?.ensureRegularAndActivate()
+            HypergraphiaAppDelegate.shared?.prepareForMenuBarSettingsActivation()
+            HypergraphiaAppDelegate.shared?.ensureRegularAndActivate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 openSettings()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {

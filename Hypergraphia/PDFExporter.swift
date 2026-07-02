@@ -1,5 +1,5 @@
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 import WebKit
 
 final class PDFExporter: NSObject, WKNavigationDelegate {

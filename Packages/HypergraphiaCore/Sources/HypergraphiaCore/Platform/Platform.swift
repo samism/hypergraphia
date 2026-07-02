@@ -116,17 +116,17 @@ public extension PlatformColor {
         #endif
     }
 
-    /// Loads a named color from the `ClearlyCore` asset catalog (`Bundle.module`).
+    /// Loads a named color from the `HypergraphiaCore` asset catalog (`Bundle.module`).
     /// The asset must exist — unresolved names trap.
     static func clearlyAsset(named name: String) -> PlatformColor {
         #if os(macOS)
         guard let color = NSColor(named: NSColor.Name(name), bundle: .module) else {
-            fatalError("Missing color asset '\(name)' in ClearlyCore Colors.xcassets")
+            fatalError("Missing color asset '\(name)' in HypergraphiaCore Colors.xcassets")
         }
         return color
         #else
         guard let color = UIColor(named: name, in: .module, compatibleWith: nil) else {
-            fatalError("Missing color asset '\(name)' in ClearlyCore Colors.xcassets")
+            fatalError("Missing color asset '\(name)' in HypergraphiaCore Colors.xcassets")
         }
         return color
         #endif

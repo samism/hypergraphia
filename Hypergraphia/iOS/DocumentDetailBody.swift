@@ -1,6 +1,6 @@
 #if os(iOS)
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 /// Per-document scene root for the iOS app. One per `DocumentGroup` window.
 /// Hosts the editor, preview (read-only), find overlay, and outline sheet.

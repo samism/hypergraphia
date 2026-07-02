@@ -1,6 +1,6 @@
 import SwiftUI
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 final class ScratchpadTextView: PersistentTextCheckingTextView {
     var onSave: (() -> Void)?

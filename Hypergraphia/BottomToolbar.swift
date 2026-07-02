@@ -1,6 +1,6 @@
 import SwiftUI
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 /// Floating-pill bottom toolbar shown over the document content. Holds the
 /// Edit/Preview segmented control, live word/character count, Copy menu, and

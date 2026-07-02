@@ -1,5 +1,5 @@
 import XCTest
-@testable import ClearlyCore
+@testable import HypergraphiaCore
 
 final class MarkdownMathTests: XCTestCase {
     // MARK: - Display math keeps its paragraph's sourcepos

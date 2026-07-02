@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 import WebKit
 import Combine
 

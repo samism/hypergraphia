@@ -1,7 +1,7 @@
 import Foundation
 
 /// Names every formatting command the host menu can dispatch at the
-/// active editor. Each case corresponds to a `ClearlyTextView` selector.
+/// active editor. Each case corresponds to a `HypergraphiaTextView` selector.
 enum FormatCommand: String {
     case bold
     case italic

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate DMG background images for Clearly installer using ImageMagick."""
+"""Generate DMG background images for the Hypergraphia installer using ImageMagick."""
 import subprocess, os, tempfile
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

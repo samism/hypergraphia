@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import KeyboardShortcuts
-import ClearlyCore
+import HypergraphiaCore
 
 private final class ScratchpadPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -96,7 +96,7 @@ final class ScratchpadManager {
                 NSAlert(error: error).runModal()
                 return
             }
-            ClearlyAppDelegate.shared?.ensureRegularAndActivate()
+            HypergraphiaAppDelegate.shared?.ensureRegularAndActivate()
             NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
         }
     }
@@ -190,6 +190,8 @@ final class ScratchpadManager {
 
         window = win
 
+        // Autosave name keeps the pre-rename "Clearly" prefix: it's a persisted
+        // UserDefaults key, and changing it would drop users' saved window frames.
         win.setFrameAutosaveName("ClearlyScratchpadWindow_v2")
         positionTopRightIfUnsaved(win)
     }

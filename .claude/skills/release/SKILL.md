@@ -3,7 +3,7 @@ name: release
 description: Determine the next version, update the marketing site, and run the full release pipeline for Mac or iOS.
 ---
 
-Cut a new release of Clearly. Mac and iOS ship independently — see `CLAUDE.md` "Versioning" and "Commit message rule". This skill picks a platform, derives the version from that platform's git tag history, and runs the matching release pipeline.
+Cut a new release of Hypergraphia. Mac and iOS ship independently — see `CLAUDE.md` "Versioning" and "Commit message rule". This skill picks a platform, derives the version from that platform's git tag history, and runs the matching release pipeline.
 
 ## Instructions
 
@@ -104,7 +104,7 @@ Changelog file depends on platform:
 Updates depend on platform:
 
 **Mac:**
-1. Edit `project.yml`. Update `MARKETING_VERSION` in all three Mac-side targets: `Clearly`, `ClearlyQuickLook`, `ClearlyCLI`. Do NOT touch `Clearly-iOS`.
+1. Edit `project.yml`. Update `MARKETING_VERSION` in both Mac-side targets: `Hypergraphia`, `HypergraphiaQuickLook`. Do NOT touch `Hypergraphia-iOS`.
 2. Edit `website/index.html`. Update the `class="requires"` line — match the existing minimum-macOS wording, do not hardcode a name:
    ```html
    <p class="requires">v<VERSION> &middot; Requires macOS Sequoia or later</p>
@@ -117,7 +117,7 @@ Updates depend on platform:
    ```
 
 **iOS:**
-1. Edit `project.yml`. Update `MARKETING_VERSION` in the `Clearly-iOS` target only. Do NOT touch the Mac-side targets.
+1. Edit `project.yml`. Update `MARKETING_VERSION` in the `Hypergraphia-iOS` target only. Do NOT touch the Mac-side targets.
 2. No website edit (iOS isn't on the marketing site yet).
 3. Commit:
    ```bash
@@ -167,7 +167,7 @@ Output three blocks as **raw plain text** (no markdown, no code fences) so the u
 2. **Promotional Text** (170 characters max) — One sentence. Tone: confident, no fluff.
 
 3. **Description** — Full App Store description. Structure:
-   - Opening one-liner about Clearly
+   - Opening one-liner about Hypergraphia
    - "No Electron. No bloat. No subscription." positioning line
    - 4-5 short paragraphs, each with a leading phrase, covering: editing, preview, media/diagrams/math, export, native macOS integration
    - Bullet list of current features
@@ -185,10 +185,10 @@ Handles: strip Sparkle from `project.yml` → archive → export → upload → 
 
 On failure after upload, the build is already in ASC — tell the user they can finish manually.
 
-**Recovery from mid-run abort.** The script strips Sparkle keys from `Clearly/Info.plist` at the top and restores them at the bottom. If it dies between those steps (entitlement check fails, archive fails, upload fails, etc.), the working tree is left dirty with Sparkle keys removed from `Info.plist` AND the Xcode project pointing at the App Store variant. Before retrying or running any other build, restore with:
+**Recovery from mid-run abort.** The script strips Sparkle keys from `Hypergraphia/Info.plist` at the top and restores them at the bottom. If it dies between those steps (entitlement check fails, archive fails, upload fails, etc.), the working tree is left dirty with Sparkle keys removed from `Info.plist` AND the Xcode project pointing at the App Store variant. Before retrying or running any other build, restore with:
 
 ```bash
-git checkout Clearly/Info.plist
+git checkout Hypergraphia/Info.plist
 xcodegen generate
 ```
 

@@ -1,6 +1,6 @@
 import SwiftUI
 import WebKit
-import ClearlyCore
+import HypergraphiaCore
 
 struct PreviewView_iOS: UIViewRepresentable {
     let markdown: String

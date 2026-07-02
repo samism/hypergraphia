@@ -1,6 +1,6 @@
 # Markdown Rendering Architecture
 
-This document describes how Clearly transforms markdown text into rendered output across its three rendering contexts: the live preview editor, the classic preview pane, and QuickLook/PDF export.
+This document describes how Hypergraphia transforms markdown text into rendered output across its three rendering contexts: the live preview editor, the classic preview pane, and QuickLook/PDF export.
 
 ---
 
@@ -10,8 +10,8 @@ This document describes how Clearly transforms markdown text into rendered outpu
 |---------|------------|--------|
 | Classic editor | `EditorView.swift` + `MarkdownSyntaxHighlighter.swift` | Syntax-colored `NSTextView` |
 | Classic preview | `PreviewView.swift` | Full HTML in `WKWebView` |
-| Live preview editor | `LiveEditorView.swift` + `ClearlyLiveEditorWeb/` | CodeMirror in `WKWebView` with inline widgets |
-| QuickLook | `ClearlyQuickLook/PreviewProvider.swift` | Full HTML in `QLPreviewReply` |
+| Live preview editor | `LiveEditorView.swift` + `HypergraphiaLiveEditorWeb/` | CodeMirror in `WKWebView` with inline widgets |
+| QuickLook | `HypergraphiaQuickLook/PreviewProvider.swift` | Full HTML in `QLPreviewReply` |
 | PDF / Print | `PDFExporter.swift` | Full HTML printed via `WKWebView` |
 
 ---
@@ -91,7 +91,7 @@ Its visual styling should track the classic preview pane as closely as possible:
 ### 3.1 Architecture
 
 ```
-Swift (LiveEditorView.swift)          JS (ClearlyLiveEditorWeb/src/index.ts)
+Swift (LiveEditorView.swift)          JS (HypergraphiaLiveEditorWeb/src/index.ts)
 ──────────────────────────            ──────────────────────────────────────
 LiveEditorWebView (WKWebView)
   └── Coordinator
@@ -200,6 +200,6 @@ Only code, frontmatter, math, and mermaid widgets receive the card-like surface 
 Follow the `MathSupport` / `MermaidSupport` / `TableSupport` / `SyntaxHighlightSupport` pattern:
 
 1. Create `Shared/<Feature>Support.swift` with a static method returning a `<script>` HTML string (or `""` if the feature doesn't apply to the current HTML).
-2. Integrate into `PreviewView.swift`, `ClearlyQuickLook/PreviewProvider.swift`, and `PDFExporter.swift` HTML templates.
-3. If the feature requires live-preview support, add a widget class in `ClearlyLiveEditorWeb/src/index.ts` following the `CodeBlockWidget` pattern: `WidgetType` subclass with `toDOM`, `updateDOM`, `ignoreEvent`, and a `buildDecorations` section that detects the block and instantiates the widget.
+2. Integrate into `PreviewView.swift`, `HypergraphiaQuickLook/PreviewProvider.swift`, and `PDFExporter.swift` HTML templates.
+3. If the feature requires live-preview support, add a widget class in `HypergraphiaLiveEditorWeb/src/index.ts` following the `CodeBlockWidget` pattern: `WidgetType` subclass with `toDOM`, `updateDOM`, `ignoreEvent`, and a `buildDecorations` section that detects the block and instantiates the widget.
 4. Update `Shared/Resources/demo.md` with an example of the new feature.

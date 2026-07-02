@@ -1,5 +1,5 @@
 import XCTest
-@testable import ClearlyCore
+@testable import HypergraphiaCore
 
 final class ReplaceEngineTests: XCTestCase {
     func testPlainSubstitutionIgnoresTemplateMetacharacters() {

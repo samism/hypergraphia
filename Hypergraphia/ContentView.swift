@@ -1,6 +1,6 @@
 import SwiftUI
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 /// Per-document scene root: hosts the editor / preview, find bar, jump-to-line
 /// bar, outline panel, and the floating bottom toolbar (mode picker / counts /

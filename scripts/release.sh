@@ -129,10 +129,10 @@ rm -rf build
 mkdir -p build
 
 # Archive
-xcodebuild -project Clearly.xcodeproj \
-  -scheme Clearly \
+xcodebuild -project Hypergraphia.xcodeproj \
+  -scheme Hypergraphia \
   -configuration Release \
-  -archivePath build/Clearly.xcarchive \
+  -archivePath build/Hypergraphia.xcarchive \
   -allowProvisioningUpdates \
   archive \
   DEVELOPMENT_TEAM="$TEAM_ID" \
@@ -142,14 +142,14 @@ xcodebuild -project Clearly.xcodeproj \
 # Export
 sed "s/\${APPLE_TEAM_ID}/$TEAM_ID/g" ExportOptions.plist > build/ExportOptions.plist
 xcodebuild -exportArchive \
-  -archivePath build/Clearly.xcarchive \
+  -archivePath build/Hypergraphia.xcarchive \
   -exportOptionsPlist build/ExportOptions.plist \
   -exportPath build/export \
   -allowProvisioningUpdates
 
 echo "🔑 Re-signing with sandbox entitlements (inside-out)..."
-sed "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$BUNDLE_ID/g" Clearly/Clearly.entitlements > build/Clearly.entitlements
-cp ClearlyQuickLook/ClearlyQuickLook.entitlements build/ClearlyQuickLook.entitlements
+sed "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$BUNDLE_ID/g" Hypergraphia/Hypergraphia.entitlements > build/Hypergraphia.entitlements
+cp HypergraphiaQuickLook/HypergraphiaQuickLook.entitlements build/HypergraphiaQuickLook.entitlements
 
 SPARKLE_FRAMEWORK="build/export/Hypergraphia.app/Contents/Frameworks/Sparkle.framework"
 if [ ! -d "$SPARKLE_FRAMEWORK" ]; then
@@ -170,13 +170,13 @@ codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp "$SPARKLE_FRAMEWORK"
 # 3. QuickLook extension (with its own entitlements)
 echo "  Signing HypergraphiaQuickLook.appex..."
 codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp \
-  --entitlements build/ClearlyQuickLook.entitlements \
+  --entitlements build/HypergraphiaQuickLook.entitlements \
   "build/export/Hypergraphia.app/Contents/PlugIns/HypergraphiaQuickLook.appex"
 
 # 4. Main app (outermost)
 echo "  Signing Hypergraphia.app..."
 codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp \
-  --entitlements build/Clearly.entitlements \
+  --entitlements build/Hypergraphia.entitlements \
   build/export/Hypergraphia.app
 
 # Verify mach-lookup entitlements survived
@@ -222,7 +222,7 @@ git tag "v$VERSION"
 git push --tags
 
 echo "📡 Generating Sparkle appcast..."
-SPARKLE_BIN=$(find ~/Library/Developer/Xcode/DerivedData/Clearly-*/SourcePackages/artifacts/sparkle/Sparkle/bin -maxdepth 0 2>/dev/null | head -1)
+SPARKLE_BIN=$(find ~/Library/Developer/Xcode/DerivedData/Hypergraphia-*/SourcePackages/artifacts/sparkle/Sparkle/bin -maxdepth 0 2>/dev/null | head -1)
 SIGNATURE=$("$SPARKLE_BIN/sign_update" build/Hypergraphia.dmg 2>&1)
 ED_SIG=$(echo "$SIGNATURE" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
 LENGTH=$(echo "$SIGNATURE" | grep -o 'length="[^"]*"' | cut -d'"' -f2)

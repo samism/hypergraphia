@@ -1,5 +1,5 @@
 import Testing
-import ClearlyCore
+import HypergraphiaCore
 
 // .serialized: cmark-gfm's C entry points are not safe to call concurrently
 // (extension registration races) — Swift Testing runs tests in parallel by

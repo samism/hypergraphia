@@ -38,18 +38,18 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-app-macos-${{ hashFiles('project.yml', 'Packages/ClearlyCore/**/*.swift', 'Packages/ClearlyCore/Package.swift') }}
+          key: ${{ runner.os }}-app-macos-${{ hashFiles('project.yml', 'Packages/HypergraphiaCore/**/*.swift', 'Packages/HypergraphiaCore/Package.swift') }}
           restore-keys: |
             ${{ runner.os }}-app-macos-
 
-      - name: Build Clearly (Mac, Debug)
+      - name: Build Hypergraphia (Mac, Debug)
         # Skip the AppIcon.icon (Icon Composer) asset compile in CI: ibtoold
         # crashes on the macos-15 runner image due to dyld AVFCore symbol
         # mismatches. The Swift code still compiles fully — only the icon is
         # skipped, which we don't ship from CI anyway.
         run: |
           xcodebuild \
-            -scheme Clearly \
+            -scheme Hypergraphia \
             -configuration Debug \
             -destination 'platform=macOS' \
             CODE_SIGN_IDENTITY="" \
@@ -86,17 +86,17 @@ jobs:
           path: |
             ~/Library/Developer/Xcode/DerivedData
             ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-app-ios-${{ hashFiles('project.yml', 'Packages/ClearlyCore/**/*.swift', 'Packages/ClearlyCore/Package.swift') }}
+          key: ${{ runner.os }}-app-ios-${{ hashFiles('project.yml', 'Packages/HypergraphiaCore/**/*.swift', 'Packages/HypergraphiaCore/Package.swift') }}
           restore-keys: |
             ${{ runner.os }}-app-ios-
 
-      - name: Build Clearly-iOS (iPhone simulator, Debug)
+      - name: Build Hypergraphia-iOS (iPhone simulator, Debug)
         # Skip the AppIcon.icon asset compile in CI — see Mac build job above.
         # Use generic iOS Simulator destination so the build doesn't depend on
         # a specific named device being pre-installed on the runner image.
         run: |
           xcodebuild \
-            -scheme Clearly-iOS \
+            -scheme Hypergraphia-iOS \
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGN_IDENTITY="" \

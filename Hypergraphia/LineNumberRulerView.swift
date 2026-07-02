@@ -1,5 +1,5 @@
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 final class LineNumberGutterView: NSView {
     weak var textView: NSTextView?

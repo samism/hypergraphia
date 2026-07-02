@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 import AppKit
 import Combine
 import os
@@ -46,7 +46,7 @@ struct EditorView: NSViewRepresentable {
         scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: extraBottomInset, right: 0)
         scrollView.scrollerInsets = NSEdgeInsets(top: 0, left: 0, bottom: -extraBottomInset, right: 0)
 
-        let textView = ClearlyTextView()
+        let textView = HypergraphiaTextView()
         textView.isRichText = false
         textView.allowsUndo = true
         textView.usesFindPanel = false
@@ -198,7 +198,7 @@ struct EditorView: NSViewRepresentable {
 
     func updateNSView(_ container: NSView, context: Context) {
         guard let scrollView = container.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
-              let textView = scrollView.documentView as? ClearlyTextView else { return }
+              let textView = scrollView.documentView as? HypergraphiaTextView else { return }
         let gutter = container.subviews.first(where: { $0 is LineNumberGutterView }) as? LineNumberGutterView
 
         // Keep coordinator's parent fresh so the binding never goes stale
@@ -374,7 +374,7 @@ struct EditorView: NSViewRepresentable {
         var highlighter: MarkdownSyntaxHighlighter?
         var lastEditedRange: NSRange?
         var lastReplacementLength: Int = 0
-        weak var textView: ClearlyTextView?
+        weak var textView: HypergraphiaTextView?
         weak var gutterView: LineNumberGutterView?
         var lastMode: ViewMode?
         var lastPositionSyncID: String?

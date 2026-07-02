@@ -1,6 +1,6 @@
 #if os(iOS)
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 struct FindOverlay_iOS: View {
     @ObservedObject var findState: FindState

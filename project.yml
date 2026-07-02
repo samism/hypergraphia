@@ -1,4 +1,4 @@
-name: Clearly
+name: Hypergraphia
 options:
   bundleIdPrefix: com.sabotage
   deploymentTarget:
@@ -20,15 +20,15 @@ packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
     from: "2.1.0"
-  ClearlyCore:
-    path: Packages/ClearlyCore
+  HypergraphiaCore:
+    path: Packages/HypergraphiaCore
 
 targets:
-  Clearly:
+  Hypergraphia:
     type: application
     platform: macOS
     sources:
-      - path: Clearly
+      - path: Hypergraphia
         excludes:
           - "iOS/**"
       - path: Shared/Resources/mermaid.min.js
@@ -51,12 +51,12 @@ targets:
       - path: Shared/Resources/getting-started.md
         buildPhase: resources
     dependencies:
-      - package: ClearlyCore
+      - package: HypergraphiaCore
       - package: cmark-gfm
         product: cmark
       - package: Sparkle
       - package: KeyboardShortcuts
-      - target: ClearlyQuickLook
+      - target: HypergraphiaQuickLook
         embed: true
     settings:
       base:
@@ -65,8 +65,8 @@ targets:
         MARKETING_VERSION: "3.2.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
-        CODE_SIGN_ENTITLEMENTS: Clearly/Clearly.entitlements
-        INFOPLIST_FILE: Clearly/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Hypergraphia/Hypergraphia.entitlements
+        INFOPLIST_FILE: Hypergraphia/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -81,16 +81,16 @@ targets:
         Release:
           CODE_SIGN_STYLE: Automatic
 
-  Clearly-iOS:
+  Hypergraphia-iOS:
     type: application
     platform: iOS
     sources:
-      - path: Clearly/iOS
+      - path: Hypergraphia/iOS
         excludes:
           - "PreviewExtension/**"
           - "ThumbnailExtension/**"
-      - path: Clearly/MarkdownDocument.swift
-      - path: Clearly/AppIcon.icon
+      - path: Hypergraphia/MarkdownDocument.swift
+      - path: Hypergraphia/AppIcon.icon
       - path: Shared/Resources/mermaid.min.js
         buildPhase: resources
       - path: Shared/Resources/svg-pan-zoom.min.js
@@ -107,10 +107,10 @@ targets:
       - path: Shared/Resources/highlight-theme.css
         buildPhase: resources
     dependencies:
-      - package: ClearlyCore
-      - target: ClearlyPreview-iOS
+      - package: HypergraphiaCore
+      - target: HypergraphiaPreview-iOS
         embed: true
-      - target: ClearlyThumbnail-iOS
+      - target: HypergraphiaThumbnail-iOS
         embed: true
     settings:
       base:
@@ -121,8 +121,8 @@ targets:
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
-        CODE_SIGN_ENTITLEMENTS: Clearly/iOS/Clearly-iOS.entitlements
-        INFOPLIST_FILE: Clearly/iOS/Info-iOS.plist
+        CODE_SIGN_ENTITLEMENTS: Hypergraphia/iOS/Hypergraphia-iOS.entitlements
+        INFOPLIST_FILE: Hypergraphia/iOS/Info-iOS.plist
         GENERATE_INFOPLIST_FILE: NO
         DEVELOPMENT_TEAM: W33JZPPPFN
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -135,11 +135,11 @@ targets:
         Release:
           CODE_SIGN_STYLE: Automatic
 
-  ClearlyQuickLook:
+  HypergraphiaQuickLook:
     type: app-extension
     platform: macOS
     sources:
-      - path: ClearlyQuickLook
+      - path: HypergraphiaQuickLook
       - path: Shared/Resources/mermaid.min.js
         buildPhase: resources
       - path: Shared/Resources/svg-pan-zoom.min.js
@@ -156,7 +156,7 @@ targets:
       - path: Shared/Resources/highlight-theme.css
         buildPhase: resources
     dependencies:
-      - package: ClearlyCore
+      - package: HypergraphiaCore
       - package: cmark-gfm
         product: cmark
     settings:
@@ -168,8 +168,8 @@ targets:
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
-        CODE_SIGN_ENTITLEMENTS: ClearlyQuickLook/ClearlyQuickLook.entitlements
-        INFOPLIST_FILE: ClearlyQuickLook/Info.plist
+        CODE_SIGN_ENTITLEMENTS: HypergraphiaQuickLook/HypergraphiaQuickLook.entitlements
+        INFOPLIST_FILE: HypergraphiaQuickLook/Info.plist
         DEVELOPMENT_TEAM: W33JZPPPFN
       configs:
         Debug:
@@ -180,11 +180,11 @@ targets:
         Release:
           CODE_SIGN_STYLE: Automatic
 
-  ClearlyPreview-iOS:
+  HypergraphiaPreview-iOS:
     type: app-extension
     platform: iOS
     sources:
-      - path: Clearly/iOS/PreviewExtension
+      - path: Hypergraphia/iOS/PreviewExtension
       - path: Shared/Resources/mermaid.min.js
         buildPhase: resources
       - path: Shared/Resources/svg-pan-zoom.min.js
@@ -201,7 +201,7 @@ targets:
       - path: Shared/Resources/highlight-theme.css
         buildPhase: resources
     dependencies:
-      - package: ClearlyCore
+      - package: HypergraphiaCore
       - package: cmark-gfm
         product: cmark
     settings:
@@ -214,8 +214,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: Clearly/iOS/PreviewExtension/ClearlyPreview.entitlements
-        INFOPLIST_FILE: Clearly/iOS/PreviewExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Hypergraphia/iOS/PreviewExtension/HypergraphiaPreview.entitlements
+        INFOPLIST_FILE: Hypergraphia/iOS/PreviewExtension/Info.plist
         DEVELOPMENT_TEAM: W33JZPPPFN
       configs:
         Debug:
@@ -224,11 +224,11 @@ targets:
         Release:
           CODE_SIGN_STYLE: Automatic
 
-  ClearlyThumbnail-iOS:
+  HypergraphiaThumbnail-iOS:
     type: app-extension
     platform: iOS
     sources:
-      - path: Clearly/iOS/ThumbnailExtension
+      - path: Hypergraphia/iOS/ThumbnailExtension
     dependencies: []
     settings:
       base:
@@ -240,8 +240,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: Clearly/iOS/ThumbnailExtension/ClearlyThumbnail.entitlements
-        INFOPLIST_FILE: Clearly/iOS/ThumbnailExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Hypergraphia/iOS/ThumbnailExtension/HypergraphiaThumbnail.entitlements
+        INFOPLIST_FILE: Hypergraphia/iOS/ThumbnailExtension/Info.plist
         DEVELOPMENT_TEAM: W33JZPPPFN
       configs:
         Debug:

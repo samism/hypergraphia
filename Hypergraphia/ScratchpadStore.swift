@@ -1,7 +1,7 @@
 import Foundation
 import AppKit
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 struct ScratchpadNote: Identifiable, Hashable {
     var url: URL

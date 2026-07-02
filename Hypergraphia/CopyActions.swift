@@ -1,5 +1,5 @@
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 enum CopyActions {
     static func copyFilePath(_ url: URL) {

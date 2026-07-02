@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
-import ClearlyCore
+import HypergraphiaCore
 
 /// Writable iOS markdown editor. Binding writes back inside
 /// `textViewDidChange` so the parent (typically `IOSDocumentSession.text`)
@@ -17,8 +17,8 @@ struct EditorView_iOS: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
-    func makeUIView(context: Context) -> ClearlyUITextView {
-        let textView = ClearlyUITextView()
+    func makeUIView(context: Context) -> HypergraphiaUITextView {
+        let textView = HypergraphiaUITextView()
         textView.delegate = context.coordinator
         textView.documentURL = documentURL
         textView.addInteraction(UIDropInteraction(delegate: context.coordinator))
@@ -39,7 +39,7 @@ struct EditorView_iOS: UIViewRepresentable {
         return textView
     }
 
-    func updateUIView(_ textView: ClearlyUITextView, context: Context) {
+    func updateUIView(_ textView: HypergraphiaUITextView, context: Context) {
         context.coordinator.parent = self
         textView.documentURL = documentURL
         context.coordinator.attachOutlineState(outlineState)
@@ -57,7 +57,7 @@ struct EditorView_iOS: UIViewRepresentable {
     final class Coordinator: NSObject, UITextViewDelegate {
 
         var parent: EditorView_iOS
-        weak var textView: ClearlyUITextView?
+        weak var textView: HypergraphiaUITextView?
         let highlighter = MarkdownSyntaxHighlighter()
 
         var pendingBindingUpdates = 0
@@ -325,7 +325,7 @@ struct EditorView_iOS: UIViewRepresentable {
         /// `textViewDidChange` pass that runs the highlighter end-to-end.
         /// The textViewDidChange callback bumps `pendingBindingUpdates` itself,
         /// so this method doesn't need to touch that counter.
-        private func applyTextReplacement(in textView: ClearlyUITextView,
+        private func applyTextReplacement(in textView: HypergraphiaUITextView,
                                           fullOldText: String,
                                           replaceRange: NSRange,
                                           replacement: String,
@@ -346,7 +346,7 @@ struct EditorView_iOS: UIViewRepresentable {
         /// Inverse of `applyTextReplacement` — restores the prior text and
         /// re-registers the redo so the next ⌘⇧Z plays the change back.
         private func applyUndoneText(in textView: UITextView, restoredText: String) {
-            guard let ctv = textView as? ClearlyUITextView else { return }
+            guard let ctv = textView as? HypergraphiaUITextView else { return }
             let currentText = ctv.text ?? ""
             let undoManager = ctv.undoManager
             undoManager?.registerUndo(withTarget: ctv) { [weak self] tv in
@@ -421,7 +421,7 @@ struct EditorView_iOS: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            guard !isHighlighting, let ctv = textView as? ClearlyUITextView else { return }
+            guard !isHighlighting, let ctv = textView as? HypergraphiaUITextView else { return }
 
             pendingBindingUpdates = 1
 

@@ -9,8 +9,4 @@ build/
 .env
 .context/
 __pycache__/
-ClearlyWYSIWYGWeb/node_modules/
-ClearlyWYSIWYGWeb/perf/dist/
-ClearlyWYSIWYGWeb/perf/fixtures/
-ClearlyWYSIWYGWeb/test/dist/
-Packages/ClearlyCore/Package.resolved
+Packages/HypergraphiaCore/Package.resolved

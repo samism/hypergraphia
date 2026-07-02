@@ -32,19 +32,19 @@ BUILD_NUMBER=$(date +%Y%m%d%H%M)
 echo "📱 Building Hypergraphia iOS v$VERSION (build $BUILD_NUMBER) for TestFlight..."
 
 # Clean build
-rm -rf build/Clearly-iOS.xcarchive build/export-ios
+rm -rf build/Hypergraphia-iOS.xcarchive build/export-ios
 mkdir -p build
 
 # ── 1. Generate project ──────────────────────────────────────────────────────
 xcodegen generate
 
 # ── 2. Archive ───────────────────────────────────────────────────────────────
-echo "📦 Archiving Clearly-iOS..."
-xcodebuild -project Clearly.xcodeproj \
-  -scheme Clearly-iOS \
+echo "📦 Archiving Hypergraphia-iOS..."
+xcodebuild -project Hypergraphia.xcodeproj \
+  -scheme Hypergraphia-iOS \
   -configuration Release \
   -destination 'generic/platform=iOS' \
-  -archivePath build/Clearly-iOS.xcarchive \
+  -archivePath build/Hypergraphia-iOS.xcarchive \
   archive \
   -allowProvisioningUpdates \
   DEVELOPMENT_TEAM="$TEAM_ID" \
@@ -55,7 +55,7 @@ xcodebuild -project Clearly.xcodeproj \
 echo "🚀 Exporting and uploading to App Store Connect..."
 sed "s/\${APPLE_TEAM_ID}/$TEAM_ID/g" ExportOptions-iOS.plist > build/ExportOptions-iOS.plist
 xcodebuild -exportArchive \
-  -archivePath build/Clearly-iOS.xcarchive \
+  -archivePath build/Hypergraphia-iOS.xcarchive \
   -exportOptionsPlist build/ExportOptions-iOS.plist \
   -exportPath build/export-ios \
   -allowProvisioningUpdates

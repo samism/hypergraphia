@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 import KeyboardShortcuts
 import ServiceManagement
 #if canImport(Sparkle)
@@ -101,7 +101,7 @@ struct SettingsView: View {
             Toggle("Hide frontmatter in Preview", isOn: $hideFrontmatterInPreview)
             Toggle("Keep running in menu bar", isOn: $keepRunningMenubarOnly)
                 .onChange(of: keepRunningMenubarOnly) { _, _ in
-                    ClearlyAppDelegate.shared?.updateActivationPolicy()
+                    HypergraphiaAppDelegate.shared?.updateActivationPolicy()
                 }
 
             Toggle("Launch at Login", isOn: $launchAtLogin)

@@ -72,7 +72,7 @@ asc_api() {
   echo "$body_content"
 }
 
-echo "📡 Submitting Clearly v$VERSION for App Review..."
+echo "📡 Submitting Hypergraphia v$VERSION for App Review..."
 
 APP_ID=$(asc_api GET "/apps?filter[bundleId]=$BUNDLE_ID&fields[apps]=bundleId" | \
   python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
@@ -147,5 +147,5 @@ asc_api PATCH "/reviewSubmissions/$REVIEW_SUBMISSION_ID" "{
   }
 }" > /dev/null
 
-echo "✅ Clearly v$VERSION submitted for App Review!"
+echo "✅ Hypergraphia v$VERSION submitted for App Review!"
 echo "   Track status at: https://appstoreconnect.apple.com"

@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 struct FindBarView: View {
     @ObservedObject var findState: FindState

@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClearlyCore",
+    name: "HypergraphiaCore",
     platforms: [.macOS(.v15), .iOS(.v17)],
     products: [
-        .library(name: "ClearlyCore", targets: ["ClearlyCore"]),
+        .library(name: "HypergraphiaCore", targets: ["HypergraphiaCore"]),
     ],
     dependencies: [
         .package(url: "https://github.com/brokenhandsio/cmark-gfm.git", from: "2.1.0"),
     ],
     targets: [
         .target(
-            name: "ClearlyCore",
+            name: "HypergraphiaCore",
             dependencies: [
                 .product(name: "cmark", package: "cmark-gfm"),
             ],
@@ -24,8 +24,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "ClearlyCoreTests",
-            dependencies: ["ClearlyCore"],
+            name: "HypergraphiaCoreTests",
+            dependencies: ["HypergraphiaCore"],
             resources: [
                 .copy("Fixtures"),
             ]

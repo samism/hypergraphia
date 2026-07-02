@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import KeyboardShortcuts
-import ClearlyCore
+import HypergraphiaCore
 #if canImport(Sparkle)
 import Sparkle
 #endif
@@ -10,8 +10,8 @@ import Sparkle
 // MARK: - App Delegate
 
 @MainActor
-final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
-    static private(set) weak var shared: ClearlyAppDelegate?
+final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
+    static private(set) weak var shared: HypergraphiaAppDelegate?
 
     private weak var trackedSettingsWindow: NSWindow?
     private var isOpeningSettingsFromMenuBar = false
@@ -376,8 +376,8 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
 // MARK: - App Entry
 
 @main
-struct ClearlyApp: App {
-    @NSApplicationDelegateAdaptor(ClearlyAppDelegate.self) var appDelegate
+struct HypergraphiaApp: App {
+    @NSApplicationDelegateAdaptor(HypergraphiaAppDelegate.self) var appDelegate
     @AppStorage("themePreference") private var themePreference = "system"
     @State private var scratchpadManager = ScratchpadManager.shared
     @State private var scratchpadStore = ScratchpadStore.shared
@@ -433,35 +433,35 @@ struct ClearlyApp: App {
             CommandGroup(replacing: .textFormatting) {
                 FontSizeCommands()
                 Divider()
-                Button("Bold") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleBold(_:))) }
+                Button("Bold") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleBold(_:))) }
                     .keyboardShortcut("b", modifiers: .command)
-                Button("Italic") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleItalic(_:))) }
+                Button("Italic") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleItalic(_:))) }
                     .keyboardShortcut("i", modifiers: .command)
-                Button("Strikethrough") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleStrikethrough(_:))) }
+                Button("Strikethrough") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleStrikethrough(_:))) }
                     .keyboardShortcut("x", modifiers: [.command, .shift])
-                Button("Heading") { performFormattingCommand(selector: #selector(ClearlyTextView.insertHeading(_:))) }
+                Button("Heading") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertHeading(_:))) }
                     .keyboardShortcut("h", modifiers: [.command, .shift])
                 Divider()
-                Button("Link…") { performFormattingCommand(selector: #selector(ClearlyTextView.insertLink(_:))) }
+                Button("Link…") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertLink(_:))) }
                     .keyboardShortcut("k", modifiers: .command)
-                Button("Image…") { performFormattingCommand(selector: #selector(ClearlyTextView.insertImage(_:))) }
+                Button("Image…") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertImage(_:))) }
                 Divider()
-                Button("Bullet List") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleBulletList(_:))) }
-                Button("Numbered List") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleNumberedList(_:))) }
-                Button("Todo") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleTodoList(_:))) }
+                Button("Bullet List") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleBulletList(_:))) }
+                Button("Numbered List") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleNumberedList(_:))) }
+                Button("Todo") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleTodoList(_:))) }
                     .keyboardShortcut("t", modifiers: [.command, .shift])
                 Divider()
-                Button("Quote") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleBlockquote(_:))) }
-                Button("Horizontal Rule") { performFormattingCommand(selector: #selector(ClearlyTextView.insertHorizontalRule(_:))) }
-                Button("Table") { performFormattingCommand(selector: #selector(ClearlyTextView.insertMarkdownTable(_:))) }
+                Button("Quote") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleBlockquote(_:))) }
+                Button("Horizontal Rule") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertHorizontalRule(_:))) }
+                Button("Table") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertMarkdownTable(_:))) }
                 Divider()
-                Button("Code") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleInlineCode(_:))) }
-                Button("Code Block") { performFormattingCommand(selector: #selector(ClearlyTextView.insertCodeBlock(_:))) }
+                Button("Code") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleInlineCode(_:))) }
+                Button("Code Block") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertCodeBlock(_:))) }
                 Divider()
-                Button("Math") { performFormattingCommand(selector: #selector(ClearlyTextView.toggleInlineMath(_:))) }
-                Button("Math Block") { performFormattingCommand(selector: #selector(ClearlyTextView.insertMathBlock(_:))) }
+                Button("Math") { performFormattingCommand(selector: #selector(HypergraphiaTextView.toggleInlineMath(_:))) }
+                Button("Math Block") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertMathBlock(_:))) }
                 Divider()
-                Button("Page Break") { performFormattingCommand(selector: #selector(ClearlyTextView.insertPageBreak(_:))) }
+                Button("Page Break") { performFormattingCommand(selector: #selector(HypergraphiaTextView.insertPageBreak(_:))) }
             }
             CommandGroup(replacing: .help) {
                 Button("Hypergraphia Help") {
@@ -549,14 +549,14 @@ struct SettingsWindowObserver: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: NSView, coordinator: Holder) {
         guard let window = coordinator.window else { return }
-        ClearlyAppDelegate.shared?.clearTrackedSettingsWindow(window)
+        HypergraphiaAppDelegate.shared?.clearTrackedSettingsWindow(window)
     }
 
     private func registerWindow(from view: NSView, context: Context) {
         DispatchQueue.main.async { [weak view] in
             guard let window = view?.window else { return }
             context.coordinator.window = window
-            ClearlyAppDelegate.shared?.registerSettingsWindow(window)
+            HypergraphiaAppDelegate.shared?.registerSettingsWindow(window)
         }
     }
 }

@@ -1,5 +1,5 @@
 import AppKit
-import ClearlyCore
+import HypergraphiaCore
 
 enum TextCheckingPreferences {
     private static let continuousSpellCheckingKey = "continuousSpellCheckingEnabled"
@@ -36,7 +36,7 @@ class PersistentTextCheckingTextView: NSTextView {
     }
 }
 
-final class ClearlyTextView: PersistentTextCheckingTextView {
+final class HypergraphiaTextView: PersistentTextCheckingTextView {
     var documentURL: URL?
     var onShowFind: (() -> Void)?
 

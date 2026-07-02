@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ClearlyCore
+@testable import HypergraphiaCore
 
 struct NavigationGuardTests {
     @Test func cleanFileBackedDocProceeds() {

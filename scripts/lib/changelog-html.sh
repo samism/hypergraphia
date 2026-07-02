@@ -109,13 +109,13 @@ $items                    </ul>
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96">
     <link rel="shortcut icon" href="/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-title" content="Clearly">
+    <meta name="apple-mobile-web-app-title" content="Hypergraphia">
     <link rel="manifest" href="/site.webmanifest">
 
-    <title>Changelog — Clearly</title>
-    <meta name="description" content="Release notes for Clearly — a native markdown editor and knowledge base for Mac and iPad.">
-    <meta property="og:title" content="Changelog — Clearly">
-    <meta property="og:description" content="Release notes for Clearly. Mac and iPad, newest first.">
+    <title>Changelog — Hypergraphia</title>
+    <meta name="description" content="Release notes for Hypergraphia — a native markdown editor and knowledge base for Mac and iPad.">
+    <meta property="og:title" content="Changelog — Hypergraphia">
+    <meta property="og:description" content="Release notes for Hypergraphia. Mac and iPad, newest first.">
     <meta property="og:image" content="https://clearly.md/icon.png">
     <meta property="og:url" content="https://clearly.md/changelog">
     <meta name="twitter:card" content="summary_large_image">
@@ -148,7 +148,7 @@ $items                    </ul>
         <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between text-sm">
             <a href="/" class="flex items-center gap-2 text-white font-medium hover:opacity-80 transition-opacity">
                 <img src="icon.png" alt="" class="size-6 rounded-md">
-                Clearly
+                Hypergraphia
             </a>
             <div class="flex items-center gap-5 text-zinc-400">
                 <a href="/changelog" class="text-white" aria-current="page">Changelog</a>
@@ -164,7 +164,7 @@ $items                    </ul>
                     Changelog
                 </h1>
                 <p class="mt-3 text-zinc-400 text-pretty max-w-[60ch]">
-                    Everything that's shipped in Clearly — Mac and iPad, newest first.
+                    Everything that's shipped in Hypergraphia — Mac and iPad, newest first.
                 </p>
             </div>
         </section>

@@ -1,5 +1,5 @@
 import Cocoa
-import ClearlyCore
+import HypergraphiaCore
 import QuickLookUI
 import WebKit
 

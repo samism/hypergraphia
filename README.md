@@ -72,8 +72,8 @@ Dependencies (cmark-gfm, Sparkle, KeyboardShortcuts) are pulled automatically by
 git clone https://github.com/Shpigford/clearly.git
 cd clearly
 brew install xcodegen    # skip if already installed
-xcodegen generate        # generates Clearly.xcodeproj from project.yml
-open Clearly.xcodeproj   # opens in Xcode
+xcodegen generate        # generates Hypergraphia.xcodeproj from project.yml
+open Hypergraphia.xcodeproj   # opens in Xcode
 ```
 
 Then hit **⌘R** to build and run.
@@ -83,35 +83,35 @@ Then hit **⌘R** to build and run.
 ### CLI build
 
 ```bash
-xcodebuild -scheme Clearly -configuration Debug build
-xcodebuild -scheme Clearly-iOS -destination 'generic/platform=iOS Simulator' build
+xcodebuild -scheme Hypergraphia -configuration Debug build
+xcodebuild -scheme Hypergraphia-iOS -destination 'generic/platform=iOS Simulator' build
 ```
 
 ## Project Structure
 
 ```
-Clearly/
-├── ClearlyApp.swift                # @main — DocumentGroup + menu commands (⌘1/⌘2)
+Hypergraphia/
+├── HypergraphiaApp.swift                # @main — DocumentGroup + menu commands (⌘1/⌘2)
 ├── MarkdownDocument.swift          # FileDocument conformance for .md files (Mac + iOS)
 ├── ContentView.swift               # Per-document scene root (Mac)
 ├── EditorView.swift                # NSViewRepresentable wrapping NSTextView
-├── ClearlyTextView.swift           # Subclassed NSTextView with formatting actions
+├── HypergraphiaTextView.swift           # Subclassed NSTextView with formatting actions
 ├── PreviewView.swift               # NSViewRepresentable wrapping WKWebView
 ├── ScratchpadManager.swift         # Menu-bar floating scratchpad windows
 ├── SettingsView.swift              # General + About preferences
 └── iOS/
-    ├── ClearlyApp_iOS.swift        # @main — DocumentGroup, system Files browser
+    ├── HypergraphiaApp_iOS.swift        # @main — DocumentGroup, system Files browser
     ├── DocumentDetailBody.swift    # Per-document scene root (iOS)
     ├── EditorView_iOS.swift        # UIViewRepresentable wrapping UITextView
-    ├── ClearlyUITextView.swift     # TextKit 1 UITextView subclass
+    ├── HypergraphiaUITextView.swift     # TextKit 1 UITextView subclass
     └── PreviewView_iOS.swift       # UIViewRepresentable wrapping WKWebView
 
-ClearlyQuickLook/
+HypergraphiaQuickLook/
 ├── PreviewProvider.swift           # QLPreviewProvider for Finder previews
 └── Info.plist
 
-Packages/ClearlyCore/               # Local SwiftPM package, platform-agnostic
-└── Sources/ClearlyCore/
+Packages/HypergraphiaCore/               # Local SwiftPM package, platform-agnostic
+└── Sources/HypergraphiaCore/
     ├── Rendering/                  # MarkdownRenderer, syntax highlighter, theme, mermaid/math/table support
     ├── State/                      # OpenDocument, OutlineState, FindState, JumpToLineState, StatusBarState
     ├── Editor/                     # ImagePasteService, ImageDownloader
@@ -131,9 +131,9 @@ project.yml                         # xcodegen config (source of truth)
 
 ### Targets
 
-1. **Clearly** (Mac) — `DocumentGroup` with `MarkdownDocument`. AppKit `NSTextView` editor + `WKWebView` preview, both bridged via `NSViewRepresentable`. Includes a menu-bar `MenuBarExtra` for floating scratchpads.
-2. **Clearly-iOS** — `DocumentGroup`. UIKit `UITextView` editor + `WKWebView` preview, bridged via `UIViewRepresentable`. The system Files browser is the entry point.
-3. **ClearlyQuickLook** — Finder extension for previewing `.md` files with Space, sharing `MarkdownRenderer` from `ClearlyCore`.
+1. **Hypergraphia** (Mac) — `DocumentGroup` with `MarkdownDocument`. AppKit `NSTextView` editor + `WKWebView` preview, both bridged via `NSViewRepresentable`. Includes a menu-bar `MenuBarExtra` for floating scratchpads.
+2. **Hypergraphia-iOS** — `DocumentGroup`. UIKit `UITextView` editor + `WKWebView` preview, bridged via `UIViewRepresentable`. The system Files browser is the entry point.
+3. **HypergraphiaQuickLook** — Finder extension for previewing `.md` files with Space, sharing `MarkdownRenderer` from `HypergraphiaCore`.
 
 ### Editor
 
@@ -155,7 +155,7 @@ Wraps platform text views (`NSTextView` on Mac, `UITextView` on iOS) via `NSView
 
 - **AppKit/UIKit bridge** — platform text views over `TextEditor` for undo, find, and `NSTextStorageDelegate` syntax highlighting
 - **Dynamic theming** — all colors through `Theme.swift` with `NSColor(name:)` for automatic light/dark
-- **Shared rendering** — `MarkdownRenderer` and `PreviewCSS` live in `ClearlyCore` and compile into Mac, iOS, and QuickLook
+- **Shared rendering** — `MarkdownRenderer` and `PreviewCSS` live in `HypergraphiaCore` and compile into Mac, iOS, and QuickLook
 - **Dual distribution** — Sparkle for direct, App Store without. All Sparkle code wrapped in `#if canImport(Sparkle)`
 - **No `.inspector()`** — outline panel uses `HStack` due to fullscreen safe area bugs
 
@@ -163,23 +163,23 @@ Wraps platform text views (`NSTextView` on Mac, `UITextView` on iOS) via `NSView
 
 ### Change syntax highlighting
 
-Edit `Packages/ClearlyCore/Sources/ClearlyCore/Rendering/MarkdownSyntaxHighlighter.swift`. Patterns are applied in order — code blocks first, then everything else.
+Edit `Packages/HypergraphiaCore/Sources/HypergraphiaCore/Rendering/MarkdownSyntaxHighlighter.swift`. Patterns are applied in order — code blocks first, then everything else.
 
 ### Modify preview styling
 
-Edit `Packages/ClearlyCore/Sources/ClearlyCore/Rendering/PreviewCSS.swift`. Used by both in-app preview and QuickLook. Keep in sync with `Theme.swift` colors. Base styles must come before `@media (prefers-color-scheme: dark)` overrides.
+Edit `Packages/HypergraphiaCore/Sources/HypergraphiaCore/Rendering/PreviewCSS.swift`. Used by both in-app preview and QuickLook. Keep in sync with `Theme.swift` colors. Base styles must come before `@media (prefers-color-scheme: dark)` overrides.
 
 ### Add a preview feature
 
-Follow the `MathSupport`/`MermaidSupport` pattern: create a `*Support.swift` enum in `ClearlyCore/Rendering/` with a static method that returns a `<script>` block. Integrate into `PreviewView.swift`, `PreviewView_iOS.swift`, `PreviewProvider.swift`, and `PDFExporter.swift`.
+Follow the `MathSupport`/`MermaidSupport` pattern: create a `*Support.swift` enum in `HypergraphiaCore/Rendering/` with a static method that returns a `<script>` block. Integrate into `PreviewView.swift`, `PreviewView_iOS.swift`, `PreviewProvider.swift`, and `PDFExporter.swift`.
 
 ## Testing
 
 ```bash
-swift test --package-path Packages/ClearlyCore
+swift test --package-path Packages/HypergraphiaCore
 ```
 
-Runs the rendering, find/replace, outline, and stats unit suites (~76 tests). UI code in `Clearly/`, `Clearly/iOS/`, and `ClearlyQuickLook/` is verified by running the app, not unit-tested.
+Runs the rendering, find/replace, outline, and stats unit suites (~76 tests). UI code in `Hypergraphia/`, `Hypergraphia/iOS/`, and `HypergraphiaQuickLook/` is verified by running the app, not unit-tested.
 
 ## License
 

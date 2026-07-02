@@ -1,5 +1,5 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 struct OutlineView: View {
     @ObservedObject var outlineState: OutlineState

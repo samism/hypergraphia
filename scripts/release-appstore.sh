@@ -130,16 +130,16 @@ mkdir -p build
 
 # ── 1. Strip Sparkle keys from Info.plist (in place, restored later) ─────────
 # Run each delete independently so missing keys don't abort the script under set -e.
-cp Clearly/Info.plist build/Info-Original.plist
+cp Hypergraphia/Info.plist build/Info-Original.plist
 for key in SUFeedURL SUPublicEDKey SUEnableInstallerLauncherService; do
-  /usr/libexec/PlistBuddy -c "Delete :$key" Clearly/Info.plist 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Delete :$key" Hypergraphia/Info.plist 2>/dev/null || true
 done
 
 # ── 2. Generate project.yml without Sparkle ─────────────────────────────────
 sed \
   -e '/^  Sparkle:$/,/from:/d' \
   -e '/- package: Sparkle/d' \
-  -e 's|Clearly/Clearly.entitlements|Clearly/Clearly-AppStore.entitlements|' \
+  -e 's|Hypergraphia/Hypergraphia.entitlements|Hypergraphia/Hypergraphia-AppStore.entitlements|' \
   project.yml > build/project-appstore.yml
 
 # ── 3. Generate Xcode project from modified spec ────────────────────────────
@@ -147,17 +147,17 @@ xcodegen generate --spec build/project-appstore.yml -p . -r .
 
 # ── 4. Archive ──────────────────────────────────────────────────────────────
 echo "📦 Archiving..."
-xcodebuild -project Clearly.xcodeproj \
-  -scheme Clearly \
+xcodebuild -project Hypergraphia.xcodeproj \
+  -scheme Hypergraphia \
   -configuration Release \
-  -archivePath build/Clearly-AppStore.xcarchive \
+  -archivePath build/Hypergraphia-AppStore.xcarchive \
   archive \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
 # Verify no Sparkle in archive
-if find build/Clearly-AppStore.xcarchive -name "Sparkle*" | grep -q .; then
+if find build/Hypergraphia-AppStore.xcarchive -name "Sparkle*" | grep -q .; then
   echo "❌ Sparkle framework found in archive. Aborting."
   exit 1
 fi
@@ -168,19 +168,19 @@ echo "✅ Archive clean — no Sparkle framework."
 # step uses destination=upload and uploads directly to ASC without leaving a
 # local .app behind, so we validate the archive (which is what gets signed
 # and shipped).
-scripts/verify-entitlements.sh build/Clearly-AppStore.xcarchive/Products/Applications/Hypergraphia.app
+scripts/verify-entitlements.sh build/Hypergraphia-AppStore.xcarchive/Products/Applications/Hypergraphia.app
 
 echo "🚀 Uploading to App Store Connect..."
 sed "s/\${APPLE_TEAM_ID}/$TEAM_ID/g" ExportOptions-AppStore.plist > build/ExportOptions-AppStore.plist
 xcodebuild -exportArchive \
-  -archivePath build/Clearly-AppStore.xcarchive \
+  -archivePath build/Hypergraphia-AppStore.xcarchive \
   -exportOptionsPlist build/ExportOptions-AppStore.plist \
   -exportPath build/export-appstore \
   -allowProvisioningUpdates
 
 # ── 6. Restore Info.plist and Xcode project (with Sparkle) ──────────────────
 echo "🔄 Restoring Sparkle project..."
-mv build/Info-Original.plist Clearly/Info.plist
+mv build/Info-Original.plist Hypergraphia/Info.plist
 xcodegen generate
 
 echo "✅ Uploaded Hypergraphia v$VERSION (build $BUILD_NUMBER) to App Store Connect."

@@ -1,9 +1,9 @@
 ---
 name: setup
-description: Get a new developer up and running with the Clearly codebase — prerequisites, build, and architecture orientation.
+description: Get a new developer up and running with the Hypergraphia codebase — prerequisites, build, and architecture orientation.
 ---
 
-Set up the Clearly development environment and orient a new contributor to the codebase.
+Set up the Hypergraphia development environment and orient a new contributor to the codebase.
 
 ## Instructions
 
@@ -28,18 +28,18 @@ If `.env` does not exist in the project root:
 xcodegen generate
 ```
 
-This reads `project.yml` (the source of truth for all Xcode project settings) and generates `Clearly.xcodeproj`. Re-run this anytime `project.yml` changes. Never edit the `.xcodeproj` directly.
+This reads `project.yml` (the source of truth for all Xcode project settings) and generates `Hypergraphia.xcodeproj`. Re-run this anytime `project.yml` changes. Never edit the `.xcodeproj` directly.
 
 ### Step 4: Build and run
 
 ```bash
-xcodebuild -scheme Clearly -configuration Debug build
+xcodebuild -scheme Hypergraphia -configuration Debug build
 ```
 
 Or open in Xcode and hit Cmd+R:
 
 ```bash
-open Clearly.xcodeproj
+open Hypergraphia.xcodeproj
 ```
 
 ### Step 5: Orient the developer
@@ -47,15 +47,15 @@ open Clearly.xcodeproj
 Share this architecture overview:
 
 **Two targets** defined in `project.yml`:
-1. **Clearly** (main app) — document-based SwiftUI app for editing markdown
-2. **ClearlyQuickLook** (app extension) — QLPreviewProvider for Finder previews
+1. **Hypergraphia** (main app) — document-based SwiftUI app for editing markdown
+2. **HypergraphiaQuickLook** (app extension) — QLPreviewProvider for Finder previews
 
 **Shared code** in `Shared/`:
 - `MarkdownRenderer.swift` — wraps `cmark_gfm_markdown_to_html()` for GFM rendering
 - `PreviewCSS.swift` — CSS string used by both the in-app preview and QuickLook extension
 
-**App code** in `Clearly/`:
-- `ClearlyApp.swift` — App entry point, `DocumentGroup` with `MarkdownDocument`, menu commands
+**App code** in `Hypergraphia/`:
+- `HypergraphiaApp.swift` — App entry point, `DocumentGroup` with `MarkdownDocument`, menu commands
 - `ContentView.swift` — Mode picker toolbar, switches between EditorView and PreviewView
 - `EditorView.swift` — `NSViewRepresentable` wrapping `NSTextView` with undo, find panel, and live syntax highlighting
 - `MarkdownSyntaxHighlighter.swift` — Regex-based syntax highlighter applied to `NSTextStorage`

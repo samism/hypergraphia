@@ -1,8 +1,8 @@
 import SwiftUI
-import ClearlyCore
+import HypergraphiaCore
 
 @main
-struct ClearlyApp_iOS: App {
+struct HypergraphiaApp_iOS: App {
     var body: some Scene {
         DocumentGroup(newDocument: MarkdownDocument()) { file in
             DocumentDetailBody(document: file.$document, fileURL: file.fileURL)

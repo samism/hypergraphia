@@ -1,5 +1,5 @@
 import Testing
-import ClearlyCore
+import HypergraphiaCore
 
 @Suite("LiveEditSupport sourcepos parsing")
 struct LiveEditLineRangeTests {
