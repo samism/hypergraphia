@@ -108,6 +108,65 @@ struct LiveEditApplyTests {
     }
 }
 
+@Suite("LiveEditSupport block deletion")
+struct LiveEditDeleteTests {
+    // Lines:            1      2  3      4  5
+    let doc = "first\n\nmiddle\n\nlast"
+
+    @Test func middleBlockSwallowsPrecedingBlank() {
+        let d = LiveEditSupport.blockDeletion(in: doc, start: 3, end: 3, original: "middle")
+        #expect(d?.start == 2 && d?.end == 3)
+        #expect(d?.original == "\nmiddle")
+        #expect(d?.previousLine == 1)
+        let text = LiveEditSupport.applyingEdit(to: doc, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(text == "first\n\nlast")
+    }
+
+    @Test func lastBlockSwallowsPrecedingBlank() {
+        let d = LiveEditSupport.blockDeletion(in: doc, start: 5, end: 5, original: "last")
+        #expect(d?.start == 4 && d?.end == 5)
+        #expect(d?.previousLine == 3)
+        let text = LiveEditSupport.applyingEdit(to: doc, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(text == "first\n\nmiddle")
+    }
+
+    @Test func firstBlockSwallowsFollowingBlank() {
+        let d = LiveEditSupport.blockDeletion(in: doc, start: 1, end: 1, original: "first")
+        #expect(d?.start == 1 && d?.end == 2)
+        #expect(d?.previousLine == 0, "no previous block before the first one")
+        let text = LiveEditSupport.applyingEdit(to: doc, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(text == "middle\n\nlast")
+    }
+
+    @Test func adjacentBlocksWithoutBlanksDeleteExactRange() {
+        // Task-list items sit on consecutive lines with no separators.
+        let tasks = "- [x] one\n- [ ] two\n- [ ] three"
+        let d = LiveEditSupport.blockDeletion(in: tasks, start: 2, end: 2, original: "- [ ] two")
+        #expect(d?.start == 2 && d?.end == 2)
+        #expect(d?.previousLine == 1)
+        let text = LiveEditSupport.applyingEdit(to: tasks, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(text == "- [x] one\n- [ ] three")
+    }
+
+    @Test func multiLineBlockDeletes() {
+        let text = "a\n\nline1\nline2\n\nz"
+        let d = LiveEditSupport.blockDeletion(in: text, start: 3, end: 4, original: "line1\nline2")
+        #expect(d?.start == 2 && d?.end == 4)
+        let updated = LiveEditSupport.applyingEdit(to: text, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(updated == "a\n\nz")
+    }
+
+    @Test func staleOriginalIsRejected() {
+        #expect(LiveEditSupport.blockDeletion(in: doc, start: 3, end: 3, original: "not middle") == nil)
+    }
+
+    @Test func deletionNeverLeavesDoubleBlankLines() {
+        let d = LiveEditSupport.blockDeletion(in: doc, start: 3, end: 3, original: "middle")
+        let text = LiveEditSupport.applyingEdit(to: doc, start: d!.start, end: d!.end, original: d!.original, replacement: "")
+        #expect(text?.contains("\n\n\n") == false)
+    }
+}
+
 @Suite("LiveEditSupport block appending")
 struct LiveEditAppendTests {
     @Test func emptyDocument() {

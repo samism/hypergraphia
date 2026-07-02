@@ -1,7 +1,10 @@
 import Testing
 import ClearlyCore
 
-@Suite("Hard line breaks")
+// .serialized: cmark-gfm's C entry points are not safe to call concurrently
+// (extension registration races) — Swift Testing runs tests in parallel by
+// default, unlike the XCTest renderer suites.
+@Suite("Hard line breaks", .serialized)
 struct MarkdownLineBreakTests {
     @Test func typedNewlineRendersAsLineBreak() {
         // CMARK_OPT_HARDBREAKS: a lone newline must survive the render

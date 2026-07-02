@@ -61,6 +61,29 @@ public enum LiveEditSupport {
         return replacingLines(in: text, start: start, end: end, with: replacement)
     }
 
+    /// Plans the removal of a whole block (Backspace on an emptied editor).
+    /// Expands the range to swallow one adjacent blank separator line —
+    /// preferring the preceding one — so deletions don't accumulate blank
+    /// lines, and reports where the previous block ends in the resulting
+    /// document (0 when the deleted block was first). Returns nil when the
+    /// target lines no longer hold `original`.
+    public static func blockDeletion(
+        in text: String, start: Int, end: Int, original: String
+    ) -> (start: Int, end: Int, original: String, previousLine: Int)? {
+        let lines = text.components(separatedBy: "\n")
+        guard start >= 1, start <= end, end <= lines.count else { return nil }
+        guard slice(text, lines: start...end) == original else { return nil }
+        var s = start
+        var e = end
+        if s > 1, lines[s - 2].trimmingCharacters(in: .whitespaces).isEmpty {
+            s -= 1
+        } else if e < lines.count, lines[e].trimmingCharacters(in: .whitespaces).isEmpty {
+            e += 1
+        }
+        guard let expandedOriginal = slice(text, lines: s...e) else { return nil }
+        return (s, e, expandedOriginal, s - 1)
+    }
+
     /// Appends `block` to `text` as a new markdown block, inserting the blank
     /// line cmark needs to keep it separate from the previous block.
     public static func appendingBlock(_ block: String, to text: String) -> String {
@@ -187,6 +210,24 @@ public enum LiveEditSupport {
                 } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                     e.preventDefault();
                     a.ta.blur();
+                } else if (e.key === 'Backspace' && a.ta.value === '' && active === a) {
+                    // Backspace on an emptied block deletes it and moves the
+                    // caret into the previous block.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (a.isAppend) {
+                        a.committed = true;
+                        a.wrap.remove();
+                        active = null;
+                        editBlockAtOrAbove(Number.MAX_SAFE_INTEGER);
+                    } else {
+                        a.committed = true;
+                        a.ta.readOnly = true;
+                        active = null;
+                        post({ type: 'deleteBlock', start: a.start, end: a.end, original: a.original });
+                        // The reload triggered by the deletion replaces the
+                        // DOM; the native side reopens the previous block.
+                    }
                 }
             });
             a.ta.addEventListener('blur', function() {
@@ -252,6 +293,30 @@ public enum LiveEditSupport {
             autogrow(built.ta);
             built.ta.focus();
             built.wrap.scrollIntoView({ block: 'nearest' });
+        };
+
+        // Opens the editor for the deepest editable block that starts at or
+        // nearest above the given source line (used after deleting a block to
+        // land the caret in its predecessor).
+        function editBlockAtOrAbove(line) {
+            var best = null;
+            var bestLine = -1;
+            document.querySelectorAll('.live-block').forEach(function(el) {
+                var m = /^(\\d+):/.exec(el.getAttribute('data-sourcepos') || '');
+                if (!m) return;
+                var startLine = parseInt(m[1], 10);
+                if (startLine <= line && startLine > bestLine) {
+                    best = el;
+                    bestLine = startLine;
+                }
+            });
+            if (!best) return;
+            pending = { el: best };
+            post({ type: 'requestEdit', sourcepos: best.getAttribute('data-sourcepos') });
+        }
+
+        window.clearlyEditBlockAtLine = function(line) {
+            if (live) editBlockAtOrAbove(line);
         };
 
         window.clearlySetLiveMode = function(on) {
