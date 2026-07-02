@@ -200,9 +200,13 @@ private struct FolderListView: View {
     }
 
     private func delete(_ file: FolderFile) {
+        let document = openDocument(for: file.url)
+        let nextWindow = isCurrent(file) ? windowToSelectAfterDeleting(document: document) : nil
+
         do {
             try FileManager.default.trashItem(at: file.url, resultingItemURL: nil)
             folderState.refresh()
+            close(document, selecting: nextWindow)
         } catch {
             NSAlert(error: error).runModal()
         }
@@ -241,6 +245,30 @@ private struct FolderListView: View {
         return NSDocumentController.shared.documents.first { document in
             document.fileURL?.standardizedFileURL == target
         }
+    }
+
+    private func isCurrent(_ file: FolderFile) -> Bool {
+        file.url.standardizedFileURL == currentFileURL?.standardizedFileURL
+    }
+
+    private func windowToSelectAfterDeleting(document: NSDocument?) -> NSWindow? {
+        guard let window = document?.windowControllers.compactMap(\.window).first else { return nil }
+        let tabs = window.tabbedWindows ?? [window]
+        guard let index = tabs.firstIndex(where: { $0 === window }) else { return nil }
+
+        if index + 1 < tabs.count {
+            return tabs[index + 1]
+        }
+        if index > 0 {
+            return tabs[index - 1]
+        }
+        return nil
+    }
+
+    private func close(_ document: NSDocument?, selecting window: NSWindow?) {
+        window?.makeKeyAndOrderFront(nil)
+        document?.close()
+        window?.makeKeyAndOrderFront(nil)
     }
 }
 
