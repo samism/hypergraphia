@@ -4,13 +4,13 @@ import XCTest
 final class StatusBarStateTests: XCTestCase {
     func testSelectionChangesKeepDocumentTotals() {
         let state = StatusBarState()
-        let text = "**Hello** world from Clearly"
+        let text = "**Hello** world from Hypergraphia"
 
         state.updateText(text)
         state.updateSelection((text as NSString).range(of: "world from"), in: text)
 
         XCTAssertEqual(state.counts.totalWords, 4)
-        XCTAssertEqual(state.counts.totalChars, "Hello world from Clearly".count)
+        XCTAssertEqual(state.counts.totalChars, "Hello world from Hypergraphia".count)
         XCTAssertEqual(state.counts.selectionWords, 2)
         XCTAssertEqual(state.counts.selectionChars, "world from".count)
 

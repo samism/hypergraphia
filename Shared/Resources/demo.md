@@ -1,12 +1,12 @@
 ---
-title: Welcome to Clearly
+title: Welcome to Hypergraphia
 author: Josh Pigford
 date: 2026-04-14
 ---
 
-# Welcome to Clearly
+# Welcome to Hypergraphia
 
-A **native macOS markdown editor** built with SwiftUI — fast, focused, and beautifully rendered. Write in markdown, switch to a live preview, and let Clearly handle the rest.
+A **native macOS markdown editor** built with SwiftUI — fast, focused, and beautifully rendered. Write in markdown, switch to a live preview, and let Hypergraphia handle the rest.
 
 > "The best tool is the one that gets out of your way." — *somebody, probably*
 
@@ -16,11 +16,11 @@ A **native macOS markdown editor** built with SwiftUI — fast, focused, and bea
 
 ## Writing & Formatting
 
-Clearly supports the full range of markdown formatting. Write in **bold**, *italic*, ***bold italic***, or ~~strikethrough~~. Combine them inline: this sentence has **bold with *nested italic* inside** for emphasis.
+Hypergraphia supports the full range of markdown formatting. Write in **bold**, *italic*, ***bold italic***, or ~~strikethrough~~. Combine them inline: this sentence has **bold with *nested italic* inside** for emphasis.
 
 Use `inline code` for short snippets, variable names like `NSTextStorage`, or file paths like `~/Desktop/notes.md`.
 
-Links look like this: [Clearly on GitHub](https://github.com/Shpigford/clearly), and autolinked URLs work too: https://apple.com.
+Links look like this: [Hypergraphia on GitHub](https://github.com/Shpigford/clearly), and autolinked URLs work too: https://apple.com.
 
 ### Highlight
 
@@ -34,7 +34,7 @@ The formula for the area of a circle is A = πr^2^, and CO~2~ levels are rising.
 
 ### Emoji Shortcodes
 
-Clearly supports GitHub-style emoji shortcodes: :rocket: :fire: :sparkles: :tada: :heart: :100:
+Hypergraphia supports GitHub-style emoji shortcodes: :rocket: :fire: :sparkles: :tada: :heart: :100:
 
 Ship features :ship:, fix bugs :bug:, and celebrate :champagne:!
 
@@ -83,7 +83,7 @@ Ship features :ship:, fix bugs :bug:, and celebrate :champagne:!
 
 ## Callouts & Admonitions
 
-Clearly supports GitHub/Obsidian-style callouts with `> [!TYPE]` syntax:
+Hypergraphia supports GitHub/Obsidian-style callouts with `> [!TYPE]` syntax:
 
 > [!NOTE]
 > This is a note callout. Use it for supplementary information.
@@ -115,11 +115,11 @@ Inline: use `cmd + 1` for live mode, `cmd + 2` for editor mode, and `cmd + 3` fo
 
 Fenced code block with syntax highlighting:
 
-```swift title="ClearlyApp.swift"
+```swift title="HypergraphiaApp.swift"
 import SwiftUI
 
 @main
-struct ClearlyApp: App {
+struct HypergraphiaApp: App {
     var body: some Scene {
         DocumentGroup(newDocument: MarkdownDocument()) { file in
             ContentView(document: file.$document)
@@ -139,9 +139,9 @@ print(fibonacci(10))
 ```
 
 ```bash
-# Build Clearly from the command line
+# Build Hypergraphia from the command line
 xcodegen generate
-xcodebuild -scheme Clearly -configuration Debug build
+xcodebuild -scheme Hypergraphia -configuration Debug build
 ```
 
 ### Diff Highlighting
@@ -233,7 +233,7 @@ flowchart LR
     E --> G[Save .md]
     F --> G
     click F "https://daringfireball.net/projects/markdown/" "Markdown spec" _blank
-    click G "https://github.com/Shpigford/clearly" "Clearly on GitHub" _blank
+    click G "https://github.com/Shpigford/clearly" "Hypergraphia on GitHub" _blank
 ```
 
 ```mermaid
@@ -252,7 +252,7 @@ sequenceDiagram
 
 ## Images
 
-![Clearly Screenshot](https://raw.githubusercontent.com/Shpigford/clearly/main/website/screenshot.jpg)
+![Hypergraphia Screenshot](https://raw.githubusercontent.com/Shpigford/clearly/main/website/screenshot.jpg)
 
 *Click any image to view it in a lightbox!*
 
@@ -260,7 +260,7 @@ sequenceDiagram
 
 ## Footnotes
 
-Clearly renders GitHub-style footnotes[^1], including multiple references[^note] in the same paragraph[^1].
+Hypergraphia renders GitHub-style footnotes[^1], including multiple references[^note] in the same paragraph[^1].
 
 *Hover over a footnote reference in preview mode to see a popover with the footnote content!*
 
@@ -276,7 +276,7 @@ Clearly renders GitHub-style footnotes[^1], including multiple references[^note]
 <details>
 <summary>Click to expand this section</summary>
 
-This content is hidden by default using the HTML `<details>` element. Clearly animates the open/close transition smoothly.
+This content is hidden by default using the HTML `<details>` element. Hypergraphia animates the open/close transition smoothly.
 
 - You can put any markdown here
 - Including lists, code, and more

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Usage: ./scripts/release-appstore.sh 1.7.0
 #
-# Builds Clearly without Sparkle, uploads to App Store Connect,
+# Builds Hypergraphia without Sparkle, uploads to App Store Connect,
 # creates a version, sets "What's New" from CHANGELOG.md, and submits for review.
 # Reads credentials from .env in the project root (same as release.sh).
 
@@ -122,7 +122,7 @@ extract_changelog_markdown() {
   echo "$md"
 }
 
-echo "🍎 Building Clearly v$VERSION (build $BUILD_NUMBER) for App Store..."
+echo "🍎 Building Hypergraphia v$VERSION (build $BUILD_NUMBER) for App Store..."
 
 # Clean build
 rm -rf build
@@ -168,7 +168,7 @@ echo "✅ Archive clean — no Sparkle framework."
 # step uses destination=upload and uploads directly to ASC without leaving a
 # local .app behind, so we validate the archive (which is what gets signed
 # and shipped).
-scripts/verify-entitlements.sh build/Clearly-AppStore.xcarchive/Products/Applications/Clearly.app
+scripts/verify-entitlements.sh build/Clearly-AppStore.xcarchive/Products/Applications/Hypergraphia.app
 
 echo "🚀 Uploading to App Store Connect..."
 sed "s/\${APPLE_TEAM_ID}/$TEAM_ID/g" ExportOptions-AppStore.plist > build/ExportOptions-AppStore.plist
@@ -183,7 +183,7 @@ echo "🔄 Restoring Sparkle project..."
 mv build/Info-Original.plist Clearly/Info.plist
 xcodegen generate
 
-echo "✅ Uploaded Clearly v$VERSION (build $BUILD_NUMBER) to App Store Connect."
+echo "✅ Uploaded Hypergraphia v$VERSION (build $BUILD_NUMBER) to App Store Connect."
 
 # ── 7. Submit to App Review via App Store Connect API ────────────────────────
 echo "📡 Submitting to App Review..."
@@ -373,5 +373,5 @@ asc_api PATCH "/reviewSubmissions/$REVIEW_SUBMISSION_ID" "{
   }
 }" > /dev/null
 
-echo "✅ Clearly v$VERSION submitted for App Review!"
+echo "✅ Hypergraphia v$VERSION submitted for App Review!"
 echo "   Track status at: https://appstoreconnect.apple.com"

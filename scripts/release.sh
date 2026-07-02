@@ -83,19 +83,19 @@ create_clearly_dmg() {
   rm -f "$output_path"
 
   create-dmg \
-    --volname "Clearly" \
+    --volname "Hypergraphia" \
     --background "$SCRIPT_DIR/dmg-background@2x.png" \
     --window-pos 200 120 \
     --window-size 660 400 \
     --icon-size 160 \
     --text-size 14 \
-    --icon "Clearly.app" 170 180 \
-    --hide-extension "Clearly.app" \
+    --icon "Hypergraphia.app" 170 180 \
+    --hide-extension "Hypergraphia.app" \
     --app-drop-link 490 180 \
     --no-internet-enable \
     --format UDZO \
     "$output_path" \
-    build/export/Clearly.app || true
+    build/export/Hypergraphia.app || true
 
   [ -f "$output_path" ] || { echo "❌ DMG creation failed"; exit 1; }
 }
@@ -119,7 +119,7 @@ if ! $DRY_RUN; then
   fi
 fi
 
-echo "🔨 Building Clearly v$VERSION..."
+echo "🔨 Building Hypergraphia v$VERSION..."
 
 # Generate Xcode project
 xcodegen generate
@@ -151,7 +151,7 @@ echo "🔑 Re-signing with sandbox entitlements (inside-out)..."
 sed "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$BUNDLE_ID/g" Clearly/Clearly.entitlements > build/Clearly.entitlements
 cp ClearlyQuickLook/ClearlyQuickLook.entitlements build/ClearlyQuickLook.entitlements
 
-SPARKLE_FRAMEWORK="build/export/Clearly.app/Contents/Frameworks/Sparkle.framework"
+SPARKLE_FRAMEWORK="build/export/Hypergraphia.app/Contents/Frameworks/Sparkle.framework"
 if [ ! -d "$SPARKLE_FRAMEWORK" ]; then
   echo "❌ Sparkle.framework not found at expected path. Check export output."
   exit 1
@@ -168,53 +168,53 @@ echo "  Signing Sparkle.framework..."
 codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp "$SPARKLE_FRAMEWORK"
 
 # 3. QuickLook extension (with its own entitlements)
-echo "  Signing ClearlyQuickLook.appex..."
+echo "  Signing HypergraphiaQuickLook.appex..."
 codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp \
   --entitlements build/ClearlyQuickLook.entitlements \
-  "build/export/Clearly.app/Contents/PlugIns/ClearlyQuickLook.appex"
+  "build/export/Hypergraphia.app/Contents/PlugIns/HypergraphiaQuickLook.appex"
 
 # 4. Main app (outermost)
-echo "  Signing Clearly.app..."
+echo "  Signing Hypergraphia.app..."
 codesign -f -s "$SIGNING_IDENTITY" -o runtime --timestamp \
   --entitlements build/Clearly.entitlements \
-  build/export/Clearly.app
+  build/export/Hypergraphia.app
 
 # Verify mach-lookup entitlements survived
-if ! codesign -d --entitlements :- build/export/Clearly.app 2>/dev/null | grep -q "mach-lookup"; then
+if ! codesign -d --entitlements :- build/export/Hypergraphia.app 2>/dev/null | grep -q "mach-lookup"; then
   echo "❌ mach-lookup entitlements missing after re-sign. Aborting."
   exit 1
 fi
 
 # Verify app entitlements survived
-scripts/verify-entitlements.sh build/export/Clearly.app
+scripts/verify-entitlements.sh build/export/Hypergraphia.app
 
 # Deep signature chain verification
-codesign --verify --deep --strict build/export/Clearly.app
+codesign --verify --deep --strict build/export/Hypergraphia.app
 echo "✅ Code signature verified (deep + strict)."
 
 if $DRY_RUN; then
-  echo "🏁 Dry run complete. Signed app at: build/export/Clearly.app"
-  echo "   To inspect: codesign -d --entitlements :- build/export/Clearly.app"
+  echo "🏁 Dry run complete. Signed app at: build/export/Hypergraphia.app"
+  echo "   To inspect: codesign -d --entitlements :- build/export/Hypergraphia.app"
   echo "   Note: spctl --assess will fail until notarized (expected in dry-run)."
   exit 0
 fi
 
 echo "📦 Creating DMG..."
-create_clearly_dmg build/Clearly.dmg
+create_clearly_dmg build/Hypergraphia.dmg
 
 echo "🔏 Notarizing..."
-xcrun notarytool submit build/Clearly.dmg \
+xcrun notarytool submit build/Hypergraphia.dmg \
   --keychain-profile "AC_PASSWORD" \
   --wait
 
 echo "📎 Stapling..."
-xcrun stapler staple build/export/Clearly.app
-rm build/Clearly.dmg
-create_clearly_dmg build/Clearly.dmg
-xcrun stapler staple build/Clearly.dmg || echo "⚠️  DMG staple failed (normal — CDN propagation delay). App inside is stapled."
+xcrun stapler staple build/export/Hypergraphia.app
+rm build/Hypergraphia.dmg
+create_clearly_dmg build/Hypergraphia.dmg
+xcrun stapler staple build/Hypergraphia.dmg || echo "⚠️  DMG staple failed (normal — CDN propagation delay). App inside is stapled."
 
 # Gatekeeper assessment (must run after notarization + stapling)
-spctl --assess --type execute --verbose build/export/Clearly.app
+spctl --assess --type execute --verbose build/export/Hypergraphia.app
 echo "✅ Gatekeeper assessment passed."
 
 echo "🏷️  Tagging v$VERSION..."
@@ -223,7 +223,7 @@ git push --tags
 
 echo "📡 Generating Sparkle appcast..."
 SPARKLE_BIN=$(find ~/Library/Developer/Xcode/DerivedData/Clearly-*/SourcePackages/artifacts/sparkle/Sparkle/bin -maxdepth 0 2>/dev/null | head -1)
-SIGNATURE=$("$SPARKLE_BIN/sign_update" build/Clearly.dmg 2>&1)
+SIGNATURE=$("$SPARKLE_BIN/sign_update" build/Hypergraphia.dmg 2>&1)
 ED_SIG=$(echo "$SIGNATURE" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
 LENGTH=$(echo "$SIGNATURE" | grep -o 'length="[^"]*"' | cut -d'"' -f2)
 PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
@@ -257,7 +257,7 @@ cat > build/appcast.xml << APPCAST
 <?xml version="1.0" standalone="yes"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
   <channel>
-    <title>Clearly</title>
+    <title>Hypergraphia</title>
     <item>
       <title>Version $VERSION</title>
       <sparkle:version>$VERSION</sparkle:version>
@@ -266,7 +266,7 @@ cat > build/appcast.xml << APPCAST
       <pubDate>$PUB_DATE</pubDate>
 $DESC_ELEMENT
       <enclosure
-        url="https://github.com/Shpigford/clearly/releases/download/v$VERSION/Clearly.dmg"
+        url="https://github.com/Shpigford/clearly/releases/download/v$VERSION/Hypergraphia.dmg"
         sparkle:edSignature="$ED_SIG"
         length="$LENGTH"
         type="application/octet-stream"
@@ -288,12 +288,12 @@ git push
 echo "🚀 Creating GitHub Release..."
 CHANGELOG_MD=$(extract_changelog_markdown "$VERSION" "CHANGELOG.md")
 if [ -n "$CHANGELOG_MD" ]; then
-  gh release create "v$VERSION" build/Clearly.dmg \
-    --title "Clearly v$VERSION" \
+  gh release create "v$VERSION" build/Hypergraphia.dmg \
+    --title "Hypergraphia v$VERSION" \
     --notes "$CHANGELOG_MD"
 else
-  gh release create "v$VERSION" build/Clearly.dmg \
-    --title "Clearly v$VERSION" \
+  gh release create "v$VERSION" build/Hypergraphia.dmg \
+    --title "Hypergraphia v$VERSION" \
     --generate-notes
 fi
 

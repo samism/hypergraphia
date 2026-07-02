@@ -215,7 +215,7 @@ public enum Theme {
         public static let findField = Theme.sansFont(size: 13)
         /// Find-result count ("3 of 7"), prev/next arrow button text.
         public static let findCount = Theme.sansFont(size: 11, weight: .medium)
-        /// Welcome screen title ("Welcome to Clearly"). Apply `.tracking(-0.3)` at the call site to match Mac.
+        /// Welcome screen title ("Welcome to Hypergraphia"). Apply `.tracking(-0.3)` at the call site to match Mac.
         public static let welcomeTitle = Theme.sansFont(size: 26, weight: .semibold)
         /// Welcome screen subtitle copy.
         public static let welcomeSubtitle = Theme.sansFont(size: 14)

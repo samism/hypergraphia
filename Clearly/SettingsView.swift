@@ -178,7 +178,7 @@ private struct AboutView: View {
                     .resizable()
                     .frame(width: 96, height: 96)
             }
-            Text("Clearly")
+            Text("Hypergraphia")
                 .font(.title2.weight(.semibold))
             Text("Version \(version) (\(build))")
                 .font(.callout)

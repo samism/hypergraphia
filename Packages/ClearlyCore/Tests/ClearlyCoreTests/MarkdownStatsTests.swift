@@ -159,7 +159,7 @@ final class MarkdownStatsTests: XCTestCase {
     // MARK: - Selection
 
     func testSelectionCountsSubsetOfTotals() {
-        let text = "Hello world from Clearly"
+        let text = "Hello world from Hypergraphia"
         let nsText = text as NSString
         let range = nsText.range(of: "world from")
         let counts = MarkdownStats.compute(text: text, selectedRange: range)

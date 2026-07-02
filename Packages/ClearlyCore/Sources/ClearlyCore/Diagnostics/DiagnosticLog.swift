@@ -13,7 +13,7 @@ public enum DiagnosticLog {
 
     private static let logFileURL: URL? = {
         guard let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
-        let appDir = dir.appendingPathComponent("Clearly")
+        let appDir = dir.appendingPathComponent("Hypergraphia")
         try? FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
         return appDir.appendingPathComponent("diagnostic.log")
     }()
@@ -58,10 +58,10 @@ public enum DiagnosticLog {
         let osVersion = ProcessInfo.processInfo.operatingSystemVersion
         let model = hardwareModel()
 
-        var output = "Clearly Diagnostic Log\n"
+        var output = "Hypergraphia Diagnostic Log\n"
             + String(repeating: "─", count: 60) + "\n"
             + "Exported:  \(dateFormatter.string(from: Date()))\n"
-            + "Clearly:   \(appVersion) (\(buildNumber))\n"
+            + "Hypergraphia: \(appVersion) (\(buildNumber))\n"
             + "macOS:     \(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)\n"
             + "Hardware:  \(model)\n"
             + "Memory:    \(ProcessInfo.processInfo.physicalMemory / (1024 * 1024 * 1024)) GB\n"

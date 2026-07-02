@@ -17,7 +17,7 @@ final class ClearlyAppDelegate: NSObject, NSApplicationDelegate {
     private var isOpeningSettingsFromMenuBar = false
     private var observers: [Any] = []
 
-    /// Temporarily set by the menubar "Quit Clearly" item so
+    /// Temporarily set by the menubar "Quit Hypergraphia" item so
     /// `applicationShouldTerminate` knows to let the process actually exit.
     /// Any other terminate path (⌘Q, File ▸ Quit) is treated as "drop to
     /// menubar" when the menubar-only toggle is on.
@@ -464,7 +464,7 @@ struct ClearlyApp: App {
                 Button("Page Break") { performFormattingCommand(selector: #selector(ClearlyTextView.insertPageBreak(_:))) }
             }
             CommandGroup(replacing: .help) {
-                Button("Clearly Help") {
+                Button("Hypergraphia Help") {
                     NSWorkspace.shared.open(URL(string: "https://github.com/Shpigford/clearly/issues")!)
                 }
                 Button("Report a Bug…") {
@@ -490,7 +490,7 @@ struct ClearlyApp: App {
                         let logText = try DiagnosticLog.exportRecentLogs()
                         let panel = NSSavePanel()
                         panel.allowedContentTypes = [.plainText]
-                        panel.nameFieldStringValue = "Clearly-Diagnostic-Log.txt"
+                        panel.nameFieldStringValue = "Hypergraphia-Diagnostic-Log.txt"
                         guard panel.runModal() == .OK, let url = panel.url else { return }
                         try logText.write(to: url, atomically: true, encoding: .utf8)
                     } catch {

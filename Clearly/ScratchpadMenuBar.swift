@@ -52,7 +52,7 @@ struct ScratchpadMenuBar: View {
         }
         .keyboardShortcut(",", modifiers: [.command])
 
-        Button("Quit Clearly") {
+        Button("Quit Hypergraphia") {
             ClearlyAppDelegate.shared?.requestFullQuitFromMenuBar()
         }
     }

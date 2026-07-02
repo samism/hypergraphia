@@ -61,7 +61,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly
-        PRODUCT_NAME: Clearly
+        PRODUCT_NAME: Hypergraphia
         MARKETING_VERSION: "3.2.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
@@ -74,7 +74,7 @@ targets:
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.samism.clearly.dev
-          PRODUCT_NAME: "Clearly Dev"
+          PRODUCT_NAME: "Hypergraphia Dev"
           CODE_SIGN_STYLE: Manual
           CODE_SIGN_IDENTITY: "-"
           DEVELOPMENT_TEAM: ""
@@ -115,7 +115,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly
-        PRODUCT_NAME: Clearly
+        PRODUCT_NAME: Hypergraphia
         MARKETING_VERSION: "2.1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
@@ -130,7 +130,7 @@ targets:
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly.dev
-          PRODUCT_NAME: "Clearly Dev"
+          PRODUCT_NAME: "Hypergraphia Dev"
           CODE_SIGN_STYLE: Automatic
         Release:
           CODE_SIGN_STYLE: Automatic
@@ -162,7 +162,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly.quicklook
-        PRODUCT_NAME: ClearlyQuickLook
+        PRODUCT_NAME: HypergraphiaQuickLook
         MARKETING_VERSION: "3.2.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
@@ -207,7 +207,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly.preview
-        PRODUCT_NAME: ClearlyPreview
+        PRODUCT_NAME: HypergraphiaPreview
         MARKETING_VERSION: "2.0.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
@@ -233,7 +233,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sabotage.clearly.thumbnail
-        PRODUCT_NAME: ClearlyThumbnail
+        PRODUCT_NAME: HypergraphiaThumbnail
         MARKETING_VERSION: "2.0.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.9"
