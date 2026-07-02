@@ -42,7 +42,7 @@ public final class FindState: ObservableObject {
         switch activeMode {
         case .edit:
             editorNavigateToNext
-        case .preview:
+        case .preview, .live:
             previewNavigateToNext
         }
     }
@@ -51,7 +51,7 @@ public final class FindState: ObservableObject {
         switch activeMode {
         case .edit:
             editorNavigateToPrevious
-        case .preview:
+        case .preview, .live:
             previewNavigateToPrevious
         }
     }

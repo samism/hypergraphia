@@ -2,6 +2,21 @@ import XCTest
 @testable import ClearlyCore
 
 final class MarkdownMathTests: XCTestCase {
+    // MARK: - Display math keeps its paragraph's sourcepos
+
+    func testDisplayMathBlockCarriesSourcepos() {
+        // The math-block div must not stay nested inside the <p> — browsers
+        // split invalid p>div nesting, which would orphan the block from its
+        // data-sourcepos and make it un-editable in live mode.
+        let html = MarkdownRenderer.renderHTML("intro\n\n$$\nx = 1\n$$\n\noutro")
+        guard let blockRange = html.range(of: #"<div class="math-block"[^>]*>"#, options: .regularExpression) else {
+            XCTFail("no math-block emitted: \(html)"); return
+        }
+        let tag = String(html[blockRange])
+        XCTAssertTrue(tag.contains("data-sourcepos=\"3:1-5:2\""), "math-block missing sourcepos: \(tag)")
+        XCTAssertFalse(html.contains("<p data-sourcepos=\"3:1-5:2\">"), "paragraph wrapper should be lifted: \(html)")
+    }
+
     // MARK: - Currency-like prose must NOT render as math (issue #200)
 
     func testGroceryCurrencyIsNotMath() {
@@ -82,7 +97,8 @@ final class MarkdownMathTests: XCTestCase {
             $$
             """
         )
-        XCTAssertTrue(html.contains(#"<div class="math-block">"#), html)
+        // May carry attributes (data-sourcepos) lifted from the paragraph.
+        XCTAssertTrue(html.contains(#"<div class="math-block""#), html)
     }
 
     func testDollarsInsideInlineCodeStayLiteral() {

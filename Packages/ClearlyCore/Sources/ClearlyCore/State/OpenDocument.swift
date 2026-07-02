@@ -2,6 +2,9 @@ import Foundation
 
 public enum ViewMode: String, CaseIterable {
     case edit
+    /// Rendered preview with in-place block editing (click a block to edit
+    /// its markdown source; leaving the block commits and re-renders).
+    case live
     case preview
 }
 

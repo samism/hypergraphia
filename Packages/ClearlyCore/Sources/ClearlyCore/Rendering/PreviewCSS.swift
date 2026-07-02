@@ -337,6 +337,8 @@ public enum PreviewCSS {
         let printBlock = "@media print {\n\(printRoot)\n}"
 
         let exportStructural = forExport ? """
+        .live-editor { display: none !important; }
+        .live-img-zoom { display: none !important; }
         .code-copy-btn { display: none !important; }
         .code-fold-btn { display: none !important; }
         .code-block-wrapper.is-folded > pre { display: block !important; }
@@ -407,7 +409,9 @@ public enum PreviewCSS {
             margin: 0;
             padding-top: calc(env(safe-area-inset-top) + 42px);
             padding-right: calc(env(safe-area-inset-right) + 40px);
-            padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
+            /* VS Code-style overscroll: the last line can always reach the
+               vertical middle of the viewport. */
+            padding-bottom: calc(env(safe-area-inset-bottom) + 30vh);
             padding-left: calc(env(safe-area-inset-left) + 40px);
             color: var(--c-text);
             background-color: var(--c-bg);
@@ -433,7 +437,7 @@ public enum PreviewCSS {
             margin-bottom: 1.5em;
             padding: 1em 1.25em;
             background-color: var(--c-frontmatter-bg);
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 0.85em;
         }
 
@@ -487,7 +491,7 @@ public enum PreviewCSS {
         h6 { font-size: 0.9375em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-heading-secondary); }
 
         p {
-            margin-bottom: 0.72em;
+            margin-bottom: 0.85em;
         }
 
         a {
@@ -537,7 +541,7 @@ public enum PreviewCSS {
             background-color: var(--c-code-bg);
             color: var(--c-code-fg);
             padding: 0.125em 0.375em;
-            border-radius: 5px;
+            border-radius: 4px;
         }
 
         .code-filename {
@@ -546,7 +550,7 @@ public enum PreviewCSS {
             padding: 0.5em 1.25em;
             background: var(--c-code-filename-bg);
             border: none;
-            border-radius: 10px 10px 0 0;
+            border-radius: 8px 8px 0 0;
             color: var(--c-code-filename-fg);
         }
 
@@ -554,7 +558,7 @@ public enum PreviewCSS {
             position: relative;
             background-color: var(--c-pre-bg);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 1.125em 1.25em;
             margin-bottom: 1.25em;
             overflow-x: auto;
@@ -590,7 +594,7 @@ public enum PreviewCSS {
             padding: 0;
             margin: 0;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             background: var(--c-btn-bg);
             color: var(--c-btn-fg);
             cursor: pointer;
@@ -631,7 +635,7 @@ public enum PreviewCSS {
             padding: 0;
             margin: 0;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             background: var(--c-btn-bg);
             color: var(--c-btn-fg);
             cursor: pointer;
@@ -675,7 +679,7 @@ public enum PreviewCSS {
         }
 
         .code-block-wrapper.is-folded > .code-filename {
-            border-radius: 10px 10px 0 0;
+            border-radius: 8px 8px 0 0;
         }
 
         .code-fold-summary {
@@ -685,7 +689,7 @@ public enum PreviewCSS {
             padding: 1.125em 1.25em;
             background-color: var(--c-pre-bg);
             color: var(--c-pre-fg);
-            border-radius: 10px;
+            border-radius: 8px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -698,14 +702,14 @@ public enum PreviewCSS {
         }
 
         .code-block-wrapper.is-folded > .code-filename + .code-fold-summary {
-            border-radius: 0 0 10px 10px;
+            border-radius: 0 0 8px 8px;
         }
 
         .code-fold-lang {
             display: inline-block;
             padding: 0 0.5em;
             margin-right: 0.5em;
-            border-radius: 4px;
+            border-radius: 3px;
             background: var(--c-code-filename-bg);
             color: var(--c-code-filename-fg);
         }
@@ -727,21 +731,31 @@ public enum PreviewCSS {
         }
 
         blockquote {
+            position: relative;
             border: none;
-            border-left: 3px solid var(--c-border-strong);
             background-color: transparent;
-            border-radius: 0;
-            padding: 0.1em 0 0.1em 0.95em;
+            padding: 0.1em 0 0.1em calc(0.95em + 3px);
             margin-left: 0;
-            margin-bottom: 0.9em;
+            margin-bottom: 1em;
             color: var(--c-blockquote-fg);
+        }
+        /* The bar lives on a pseudo-element so it keeps square ends even
+           when the block itself gets rounded hover treatment. */
+        blockquote::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background-color: var(--c-border-strong);
         }
         blockquote > *:last-child {
             margin-bottom: 0;
         }
 
         ul, ol {
-            margin-bottom: 0.72em;
+            margin-bottom: 0.85em;
             padding-left: 1.45em;
         }
 
@@ -895,7 +909,7 @@ public enum PreviewCSS {
             padding: 0;
             margin: 0;
             border: none;
-            border-radius: 6px;
+            border-radius: 5px;
             background: var(--c-btn-bg);
             color: var(--c-btn-fg);
             cursor: pointer;
@@ -965,10 +979,107 @@ public enum PreviewCSS {
             line-height: 0;
         }
 
+        /* Live mode (editable preview) */
+        body.live-mode:not(:has(.live-block, .live-editor))::before {
+            content: "Click to start writing";
+            color: var(--c-caption);
+        }
+        body.live-mode .live-block {
+            cursor: text;
+            border-radius: 4px;
+            transition: box-shadow 0.12s ease, background-color 0.12s ease;
+        }
+        body.live-mode .live-block:hover {
+            background-color: var(--c-row-hover-bg);
+            box-shadow: 0 0 0 5px var(--c-row-hover-bg);
+        }
+        /* Blocks that carry their own card background keep it (and their own
+           radius) on hover — repainting them with the tint reads as flicker.
+           The halo alone marks them. */
+        body.live-mode pre.live-block { border-radius: 8px; }
+        body.live-mode pre.live-block:hover { background-color: var(--c-pre-bg); }
+        body.live-mode .frontmatter.live-block { border-radius: 8px; }
+        body.live-mode .frontmatter.live-block:hover { background-color: var(--c-frontmatter-bg); }
+        body.live-mode .toc.live-block { border-radius: 8px; }
+        body.live-mode .toc.live-block:hover { background-color: var(--c-toc-bg); }
+        /* A code card with a filename header hovers as one unit: the halo
+           wraps the whole wrapper, not just the pre inside it. */
+        body.live-mode .code-block-wrapper:has(pre.live-block:hover) {
+            border-radius: 8px;
+            box-shadow: 0 0 0 5px var(--c-row-hover-bg);
+            transition: box-shadow 0.12s ease;
+        }
+        body.live-mode .code-block-wrapper pre.live-block:hover {
+            box-shadow: none;
+        }
+        body.live-mode .code-block-wrapper .code-filename + pre.live-block {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+        body.live-mode.live-append-zone {
+            cursor: text;
+        }
+        /* Images edit on click like any block; the hover button opens the
+           lightbox instead. Overrides the inline zoom-in cursor. */
+        body.live-mode .live-block img {
+            cursor: text !important;
+        }
+        .live-img-zoom {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            padding: 0;
+            border-radius: 5px;
+            background: var(--c-popover-bg);
+            color: var(--c-text);
+            box-shadow: 0 1px 3px var(--c-popover-shadow-1);
+            cursor: zoom-in;
+            z-index: 50;
+        }
+        .live-editor {
+            margin-bottom: 0.85em;
+        }
+        /* Bare in-place editing: the source text sits exactly where the
+           rendered block was — no box, no border, just the caret. */
+        .live-editor textarea {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            line-height: inherit;
+            color: var(--c-text);
+            caret-color: var(--c-accent);
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            margin: 0;
+            resize: none;
+            outline: none;
+            overflow: hidden;
+            white-space: pre-wrap;
+        }
+        .live-editor textarea.live-mono {
+            font-family: \(Self.monoFontFamily);
+            font-size: 0.875em;
+            line-height: 1.45;
+        }
+        /* Heading sources edit at their rendered scale. */
+        .live-editor.live-h1 textarea { font-size: 1.7em; font-weight: 700; line-height: 1.18; }
+        .live-editor.live-h2 textarea { font-size: 1.35em; font-weight: 700; line-height: 1.18; }
+        .live-editor.live-h3 textarea { font-size: 1.1em; font-weight: 700; line-height: 1.18; }
+        .live-editor.live-h4 textarea { font-size: 1em; font-weight: 700; line-height: 1.18; }
+        .live-editor.live-h5 textarea { font-size: 1em; font-weight: 600; line-height: 1.18; }
+        .live-editor.live-h6 textarea { font-size: 0.9375em; font-weight: 600; line-height: 1.18; }
+
         /* Callouts/Admonitions */
         .callout {
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 1em 1.25em;
             margin-bottom: 1.25em;
             background-color: var(--c-callout-default);
@@ -982,7 +1093,8 @@ public enum PreviewCSS {
         }
         .callout-icon { flex-shrink: 0; }
         .callout-content > *:last-child { margin-bottom: 0; }
-        .callout-content blockquote { border-left: none; padding-left: 0; color: inherit; }
+        .callout-content blockquote { padding-left: 0; color: inherit; }
+        .callout-content blockquote::before { display: none; }
 
         details.callout > summary { cursor: pointer; list-style: none; }
         /* Collapsed foldable callouts: drop the title's bottom margin so the
@@ -1009,7 +1121,7 @@ public enum PreviewCSS {
         .toc {
             background-color: var(--c-toc-bg);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 1.25em 1.5em;
             margin-bottom: 1.5em;
         }
@@ -1082,7 +1194,7 @@ public enum PreviewCSS {
             max-width: 90vw;
             max-height: 90vh;
             object-fit: contain;
-            border-radius: 8px;
+            border-radius: 7px;
         }
 
         /* Footnote popovers */
@@ -1092,7 +1204,7 @@ public enum PreviewCSS {
             padding: 14px 18px;
             background: var(--c-popover-bg);
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             box-shadow: 0 4px 20px var(--c-popover-shadow-1), 0 0 0 0.5px var(--c-popover-shadow-2);
             color: var(--c-text);
             font-size: 0.9em;
@@ -1127,7 +1239,7 @@ public enum PreviewCSS {
             justify-content: center;
             gap: 8px;
             padding: 24px 16px;
-            border-radius: 10px;
+            border-radius: 8px;
             background-color: var(--c-blockquote-bg);
             border: 1px dashed var(--c-border-strong);
             color: var(--c-anchor);
@@ -1177,7 +1289,7 @@ public enum PreviewCSS {
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: 5px;
             background: var(--c-popover-bg);
             color: var(--c-text);
             box-shadow: 0 1px 3px var(--c-popover-shadow-1);
@@ -1187,6 +1299,16 @@ public enum PreviewCSS {
         }
         .mermaid-wrapper:hover .mermaid-zoom-icon {
             opacity: 0.9;
+        }
+        /* In live mode the diagram body edits on click, so the zoom icon
+           becomes the (clickable) way into the lightbox. */
+        body.live-mode .mermaid-zoom-icon {
+            pointer-events: auto;
+            cursor: zoom-in;
+        }
+        body.live-mode .mermaid-wrapper .mermaid,
+        body.live-mode .mermaid-wrapper .mermaid svg {
+            cursor: text;
         }
 
         .mermaid-lightbox {

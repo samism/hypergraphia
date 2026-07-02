@@ -171,7 +171,10 @@ final class PreviewCSSTests: XCTestCase {
         XCTAssertTrue(sheet.contains("border-radius: 50%;"))
         XCTAssertTrue(sheet.contains("background-color: var(--c-accent);"))
         // Blockquote is a left bar, not a filled box.
-        XCTAssertTrue(sheet.contains("border-left: 3px solid var(--c-border-strong);"))
+        // Blockquote bar lives on a pseudo-element (square ends survive the
+        // rounded hover treatment).
+        XCTAssertTrue(sheet.contains("blockquote::before"))
+        XCTAssertTrue(sheet.contains("width: 3px;"))
         // Links carry a soft gold underline.
         XCTAssertTrue(sheet.contains("text-underline-offset: 2px;"))
         // Tables render a full grid.

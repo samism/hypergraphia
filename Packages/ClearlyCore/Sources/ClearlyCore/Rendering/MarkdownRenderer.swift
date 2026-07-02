@@ -16,7 +16,11 @@ public enum MarkdownRenderer {
         let mathProtected = protectEscapedMathDelimiters(in: body)
         let protectedBody = protectWikilinkPipes(in: mathProtected)
         let len = protectedBody.utf8.count
-        let options = Int32(CMARK_OPT_UNSAFE | CMARK_OPT_FOOTNOTES | CMARK_OPT_STRIKETHROUGH_DOUBLE_TILDE | CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_PREFER_STYLE_ATTRIBUTES)
+        // HARDBREAKS: a typed newline renders as a visible line break (like
+        // Notes/Typora/GitHub comments) instead of collapsing into a space —
+        // essential for live mode, where Enter in a block editor must survive
+        // the round trip visibly.
+        let options = Int32(CMARK_OPT_UNSAFE | CMARK_OPT_FOOTNOTES | CMARK_OPT_STRIKETHROUGH_DOUBLE_TILDE | CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_PREFER_STYLE_ATTRIBUTES | CMARK_OPT_HARDBREAKS)
         var html: String
         // Try GFM renderer first (tables, strikethrough, task lists, autolinks)
         if let buf = cmark_gfm_markdown_to_html(protectedBody, len, options) {
@@ -139,7 +143,8 @@ public enum MarkdownRenderer {
     /// Convert $...$ and $$...$$ in rendered HTML to KaTeX-compatible spans/divs.
     /// Only transforms text nodes outside protected <code>/<pre> regions.
     private static func processMath(_ html: String) -> String {
-        let (protectedHTML, protectedSegments) = protectCodeRegions(in: html)
+        let (rawProtectedHTML, protectedSegments) = protectCodeRegions(in: html)
+        let protectedHTML = normalizeMathLineBreaks(in: rawProtectedHTML)
         guard let tagRegex = try? NSRegularExpression(pattern: #"<[^>]+>"#) else {
             return restoreProtectedSegments(in: processMathText(protectedHTML), segments: protectedSegments)
         }
@@ -166,7 +171,46 @@ public enum MarkdownRenderer {
             }
         }
 
+        // A display-math paragraph becomes <p><div class="math-block">…</div></p>,
+        // which browsers "repair" by splitting the invalid p>div nesting —
+        // orphaning the block from the paragraph's data-sourcepos. Lift the
+        // div out and move the paragraph's attributes (sourcepos) onto it.
+        if let unwrapRegex = try? NSRegularExpression(
+            pattern: #"<p([^>]*)>\s*<div class="math-block">([\s\S]*?)</div>\s*</p>"#
+        ) {
+            result = unwrapRegex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: #"<div class="math-block"$1>$2</div>"#
+            )
+        }
+
         return restoreProtectedSegments(in: result, segments: protectedSegments)
+    }
+
+    /// HARDBREAKS turns the newlines inside a `$$ … $$` paragraph into
+    /// `<br />` tags, which would split the math across tag boundaries before
+    /// extraction. Normalize them back to newlines within math paragraphs.
+    private static func normalizeMathLineBreaks(in html: String) -> String {
+        guard html.contains("$$") else { return html }
+        guard let mathParaRegex = try? NSRegularExpression(
+            pattern: #"<p[^>]*>\s*\$\$[\s\S]*?\$\$\s*</p>"#
+        ) else { return html }
+        let ns = html as NSString
+        var result = ""
+        var lastEnd = 0
+        for match in mathParaRegex.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+            result += ns.substring(with: NSRange(location: lastEnd, length: match.range.location - lastEnd))
+            let para = ns.substring(with: match.range)
+            result += para.replacingOccurrences(
+                of: #"<br\s*/?>\n?"#,
+                with: "\n",
+                options: .regularExpression
+            )
+            lastEnd = match.range.location + match.range.length
+        }
+        result += ns.substring(from: lastEnd)
+        return result
     }
 
     private static func processMathText(_ text: String) -> String {
@@ -565,7 +609,7 @@ public enum MarkdownRenderer {
         // Group 6 captures remaining content inside the first <p> (may span newlines).
         // Group 7 captures content after the first </p>.
         guard let regex = try? NSRegularExpression(
-            pattern: #"<blockquote([^>]*)>\s*<p([^>]*)>\[!([\w]+)\](-?)[ \t]*([^\n]*)\n?([\s\S]*?)</p>([\s\S]*?)</blockquote>"#,
+            pattern: #"<blockquote([^>]*)>\s*<p([^>]*)>\[!([\w]+)\](-?)[ \t]*([^\n]*?)(?:<br\s*/?>\n?|\n|(?=</p>))([\s\S]*?)</p>([\s\S]*?)</blockquote>"#,
             options: []
         ) else { return html }
         let ns = html as NSString

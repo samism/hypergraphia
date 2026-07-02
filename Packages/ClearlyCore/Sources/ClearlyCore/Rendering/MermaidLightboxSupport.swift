@@ -113,6 +113,9 @@ public enum MermaidLightboxSupport {
         var wrapper = target.closest('.mermaid-wrapper');
         if (!wrapper) return;
         if (activeOverlay) return; // suppress while lightbox open
+        // Live mode: clicking the diagram edits its source instead; only the
+        // zoom icon (clickable there) opens the lightbox.
+        if (document.body.classList.contains('live-mode') && !target.closest('.mermaid-zoom-icon')) return;
         e.preventDefault();
         var mermaidEl = wrapper.querySelector('.mermaid');
         if (mermaidEl) openLightbox(mermaidEl);

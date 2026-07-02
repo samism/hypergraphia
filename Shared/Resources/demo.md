@@ -111,7 +111,7 @@ Add a `-` after the type to make it collapsible:
 
 ## Code
 
-Inline: use `cmd + 1` for editor mode and `cmd + 2` for preview mode.
+Inline: use `cmd + 1` for live mode, `cmd + 2` for editor mode, and `cmd + 3` for preview mode.
 
 Fenced code block with syntax highlighting:
 
