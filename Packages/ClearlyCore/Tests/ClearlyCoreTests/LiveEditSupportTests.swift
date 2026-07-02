@@ -250,9 +250,33 @@ struct LiveEditScriptTests {
         #expect(script.contains("window.clearlyBeginEdit"))
         #expect(script.contains("window.clearlyBeginAppend"))
         #expect(script.contains("window.clearlySetLiveMode"))
+        #expect(script.contains("window.clearlySetSource"))
         #expect(script.contains("requestEdit"))
         #expect(script.contains("commitEdit"))
         #expect(script.contains("appendBlock"))
         #expect(script.contains("deleteBlockRange"))
+    }
+}
+
+@Suite("LiveEditSupport source script")
+struct LiveEditSourceScriptTests {
+    @Test func embedsSourceAsJSON() {
+        let html = LiveEditSupport.sourceScriptHTML(for: "# Hi\n\nBody \"quoted\" text.")
+        #expect(html.hasPrefix("<script>window.__clearlySource = "))
+        #expect(html.hasSuffix(";</script>"))
+        #expect(html.contains("\\n"))
+        #expect(html.contains("\\\"quoted\\\""))
+    }
+
+    @Test func scriptCloseTagCannotBreakOut() {
+        // JSON encoding escapes "/", so a literal </script> in the markdown
+        // must not terminate the script element early.
+        let html = LiveEditSupport.sourceScriptHTML(for: "evil </script><script>alert(1)")
+        #expect(!html.dropFirst("<script>".count).dropLast("</script>".count).contains("</script>"))
+    }
+
+    @Test func emptySource() {
+        let html = LiveEditSupport.sourceScriptHTML(for: "")
+        #expect(html == "<script>window.__clearlySource = \"\";</script>")
     }
 }

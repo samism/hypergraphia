@@ -112,6 +112,16 @@ public enum LiveEditSupport {
         return text + "\n\n" + trimmedBlock
     }
 
+    /// A script tag exposing the full markdown source to the page, enabling
+    /// synchronous selection expansion across block boundaries (no native
+    /// round trip, so default caret behavior is preserved). JSON encoding
+    /// escapes `/`, so `</script>` in the markdown cannot break out.
+    public static func sourceScriptHTML(for markdown: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: markdown, options: .fragmentsAllowed),
+              let json = String(data: data, encoding: .utf8) else { return "" }
+        return "<script>window.__clearlySource = \(json);</script>"
+    }
+
     // MARK: - Injected script
 
     /// Message protocol posted to the `liveEdit` handler:
@@ -130,6 +140,14 @@ public enum LiveEditSupport {
         var pending = null;   // element awaiting a clearlyBeginEdit reply
         var active = null;    // {editor, textarea, original, start, end, isAppend, committed}
         var clearNext = false; // empty the next opened editor (selection delete)
+        var mouseHeld = false; // suppress shrink while a drag is in progress
+        // Full markdown source (sourceScriptHTML), powering selection
+        // expansion across block boundaries.
+        var docSource = (typeof window.__clearlySource === 'string') ? window.__clearlySource : null;
+
+        window.clearlySetSource = function(s) {
+            docSource = (typeof s === 'string') ? s : null;
+        };
 
         function isTaskItem(el) {
             return el && el.tagName === 'LI'
@@ -186,6 +204,169 @@ public enum LiveEditSupport {
             return { wrap: wrap, ta: ta };
         }
 
+        // The whole visual unit a block belongs to — wrapper chrome (copy/
+        // fold buttons, table shells, mermaid zoom icons) moves with it.
+        function unitFor(el) {
+            return el.closest('.code-block-wrapper, .table-shell, .mermaid-wrapper') || el;
+        }
+
+        // Rendered blocks by source position (the active editor's block is
+        // swapped out of the DOM, so it never appears here).
+        function blockRanges() {
+            var ranges = [];
+            document.querySelectorAll('.live-block').forEach(function(el) {
+                var m = /^(\\d+):\\d+-(\\d+):(\\d+)$/.exec(el.getAttribute('data-sourcepos') || '');
+                if (!m) return;
+                ranges.push({ el: el,
+                              start: parseInt(m[1], 10),
+                              end: parseInt(m[2], 10) - (m[3] === '0' ? 1 : 0) });
+            });
+            return ranges;
+        }
+
+        // Detach the rendered blocks in [fromLine, toLine], returning records
+        // that can reattach them exactly where they were.
+        function removeRenderedBlocks(fromLine, toLine) {
+            var recs = [];
+            blockRanges().forEach(function(r) {
+                if (r.start < fromLine || r.end > toLine) return;
+                var unit = unitFor(r.el);
+                if (unit.previousElementSibling && unit.previousElementSibling.classList.contains('code-filename')) {
+                    var h = unit.previousElementSibling;
+                    recs.push({ el: h, parent: h.parentNode, next: h.nextSibling });
+                    h.remove();
+                }
+                recs.push({ el: unit, parent: unit.parentNode, next: unit.nextSibling });
+                unit.remove();
+            });
+            return recs;
+        }
+
+        // Reattach detached units in reverse removal order, so each recorded
+        // next-sibling anchor is back in the document before it's needed.
+        function reinsert(recs) {
+            for (var i = recs.length - 1; i >= 0; i--) {
+                var s = recs[i];
+                var anchor = (s.next && s.next.parentNode === s.parent) ? s.next : null;
+                s.parent.insertBefore(s.el, anchor);
+            }
+        }
+
+        // Release absorbed neighbors the selection has retreated from: a
+        // block that is no longer selected leaves edit mode and returns to
+        // rendered form. Only safe while the editor content is untouched —
+        // once the user types, absorption is final until commit or cancel.
+        function maybeShrink(a) {
+            if (!a || a.committed || a.isAppend || mouseHeld) return;
+            if (a.ta.value !== a.original) return;
+            if (!a.below.length && !a.above.length) return;
+            var ta = a.ta;
+            var changed = false;
+            while (a.below.length) {
+                var seg = a.below[a.below.length - 1];
+                var boundary = ta.value.length - seg.len;
+                if (ta.selectionEnd > boundary) break;
+                var s = ta.selectionStart, e = ta.selectionEnd, d = ta.selectionDirection;
+                a.below.pop();
+                ta.value = ta.value.slice(0, boundary);
+                a.original = a.original.slice(0, a.original.length - seg.len);
+                a.end = seg.prevEnd;
+                reinsert(seg.recs);
+                ta.setSelectionRange(s, e, d);
+                changed = true;
+            }
+            while (a.above.length) {
+                var top = a.above[a.above.length - 1];
+                if (ta.selectionStart < top.len) break;
+                var s2 = ta.selectionStart - top.len, e2 = ta.selectionEnd - top.len;
+                var d2 = ta.selectionDirection;
+                a.above.pop();
+                ta.value = ta.value.slice(top.len);
+                a.original = a.original.slice(top.len);
+                a.start = top.prevStart;
+                reinsert(top.recs);
+                ta.setSelectionRange(s2, e2, d2);
+                changed = true;
+            }
+            if (!changed) return;
+            // Fully retracted: the editor is a single block again, so give it
+            // back its block-specific styling and snapped height.
+            if (!a.below.length && !a.above.length && a.baseWrapClass != null) {
+                a.wrap.className = a.baseWrapClass;
+                a.ta.className = a.baseTaClass;
+            }
+            ta.style.height = '';
+            autogrow(ta);
+            if (!a.below.length && !a.above.length && a.baseHeight) {
+                ta.style.height = a.baseHeight;
+            }
+        }
+
+        // Grow the active editor to include the neighboring block (or the
+        // document edge), keeping the selection anchored. Runs synchronously
+        // so the browser's default caret movement continues into the newly
+        // included text.
+        function expandActive(a, up, toDocEdge) {
+            if (!docSource || a.isAppend || a.committed) return false;
+            var lines = docSource.split('\\n');
+            var newStart = a.start, newEnd = a.end;
+            if (up) {
+                if (toDocEdge) {
+                    newStart = 1;
+                } else {
+                    var prev = null;
+                    blockRanges().forEach(function(r) {
+                        if (r.end < a.start && (!prev || r.start > prev.start)) prev = r;
+                    });
+                    if (!prev) return false;
+                    newStart = prev.start;
+                }
+                if (newStart >= a.start) return false;
+            } else {
+                if (toDocEdge) {
+                    newEnd = lines.length;
+                } else {
+                    var next = null;
+                    blockRanges().forEach(function(r) {
+                        if (r.start > a.end && (!next || r.end < next.end)) next = r;
+                    });
+                    if (!next) return false;
+                    newEnd = next.end;
+                }
+                if (newEnd <= a.end) return false;
+            }
+            var selS = a.ta.selectionStart, selE = a.ta.selectionEnd;
+            var selD = a.ta.selectionDirection;
+            if (a.baseWrapClass == null) {
+                a.baseWrapClass = a.wrap.className;
+                a.baseTaClass = a.ta.className;
+            }
+            if (up) {
+                var head = lines.slice(newStart - 1, a.start - 1).join('\\n');
+                a.ta.value = head + '\\n' + a.ta.value;
+                a.original = head + '\\n' + a.original;
+                a.above.push({ len: head.length + 1, prevStart: a.start,
+                               recs: removeRenderedBlocks(newStart, a.start - 1) });
+                a.start = newStart;
+                var shift = head.length + 1;
+                selS += shift; selE += shift;
+            } else {
+                var tail = lines.slice(a.end, newEnd).join('\\n');
+                a.ta.value = a.ta.value + '\\n' + tail;
+                a.original = a.original + '\\n' + tail;
+                a.below.push({ len: tail.length + 1, prevEnd: a.end,
+                               recs: removeRenderedBlocks(a.end + 1, newEnd) });
+                a.end = newEnd;
+            }
+            // Mixed content: drop heading scale and mono styling.
+            a.wrap.className = 'live-editor';
+            a.ta.classList.remove('live-mono');
+            a.ta.style.height = '';
+            autogrow(a.ta);
+            a.ta.setSelectionRange(selS, selE, selD);
+            return true;
+        }
+
         function closeActive(commit) {
             if (!active || active.committed) return;
             var a = active;
@@ -210,6 +391,12 @@ public enum LiveEditSupport {
                 return;
             }
             // Cancel / unchanged: restore the rendered block in place.
+            // Absorbed neighbors go back first, newest-first per side, so
+            // each recorded next-sibling anchor is attached when needed.
+            for (var i = a.below.length - 1; i >= 0; i--) reinsert(a.below[i].recs);
+            for (var j = a.above.length - 1; j >= 0; j--) reinsert(a.above[j].recs);
+            a.below = [];
+            a.above = [];
             if (a.isAppend) {
                 a.wrap.remove();
             } else if (a.originalEl) {
@@ -222,6 +409,39 @@ public enum LiveEditSupport {
         function attachEvents(a) {
             a.ta.addEventListener('input', function() { autogrow(a.ta); });
             a.ta.addEventListener('keydown', function(e) {
+                // A key press means any mouse drag is over (a lost mouseup
+                // outside the window must not disable shrink forever).
+                mouseHeld = false;
+                // Selection running past the block boundary grows the editor
+                // into the neighboring blocks, Apple Notes-style. Expansion is
+                // synchronous, so the default caret movement then continues
+                // into the newly included text — no preventDefault. Option is
+                // allowed on the plain-arrow branches: the default action then
+                // extends by paragraph (option+up/down) or word (option+
+                // left/right) into the absorbed text.
+                var ta = a.ta;
+                if (e.shiftKey && e.metaKey && !e.altKey && e.key === 'ArrowDown') {
+                    expandActive(a, false, true);
+                } else if (e.shiftKey && e.metaKey && !e.altKey && e.key === 'ArrowUp') {
+                    expandActive(a, true, true);
+                } else if (e.shiftKey && !e.metaKey
+                           && (e.key === 'ArrowDown' || e.key === 'ArrowRight')
+                           && ta.selectionEnd === ta.value.length
+                           && ta.selectionDirection !== 'backward') {
+                    expandActive(a, false, false);
+                } else if (e.shiftKey && !e.metaKey
+                           && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')
+                           && ta.selectionStart === 0
+                           && (ta.selectionStart === ta.selectionEnd || ta.selectionDirection === 'backward')) {
+                    expandActive(a, true, false);
+                } else if (e.metaKey && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A')
+                           && ta.value.length > 0
+                           && ta.selectionStart === 0 && ta.selectionEnd === ta.value.length) {
+                    // Everything in the block is already selected: the second
+                    // Cmd-A widens to the whole document.
+                    expandActive(a, true, true);
+                    expandActive(a, false, true);
+                }
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     e.stopPropagation();
@@ -255,6 +475,15 @@ public enum LiveEditSupport {
                 // blurring (when the next one takes focus) must not close it.
                 setTimeout(function() { if (active === a) closeActive(true); }, 0);
             });
+            a.ta.addEventListener('mousedown', function() { mouseHeld = true; });
+            // Shrink triggers: newer WebKit fires selectionchange at the
+            // control itself; the keyup covers engines that don't.
+            a.ta.addEventListener('selectionchange', function() {
+                if (active === a) maybeShrink(a);
+            });
+            a.ta.addEventListener('keyup', function(e) {
+                if (active === a && e.key && e.key.indexOf('Arrow') === 0) maybeShrink(a);
+            });
         }
 
         window.clearlyBeginEdit = function(start, end, source) {
@@ -274,7 +503,7 @@ public enum LiveEditSupport {
             // Swap out the whole visual unit — wrapper chrome (copy/fold
             // buttons, table shells, mermaid zoom icons) must not float
             // around the bare editor.
-            var unit = el.closest('.code-block-wrapper, .table-shell, .mermaid-wrapper') || el;
+            var unit = unitFor(el);
             // The code filename header is a sibling outside the wrapper.
             var header = null;
             if (unit.previousElementSibling && unit.previousElementSibling.classList.contains('code-filename')) {
@@ -288,7 +517,8 @@ public enum LiveEditSupport {
             built.wrap.style.marginBottom = cs.marginBottom;
             unit.replaceWith(built.wrap);
             active = { wrap: built.wrap, ta: built.ta, original: source, originalEl: unit,
-                       header: header, start: start, end: end, isAppend: false, committed: false };
+                       header: header, start: start, end: end, isAppend: false, committed: false,
+                       above: [], below: [], baseWrapClass: null, baseTaClass: null, baseHeight: null };
             attachEvents(active);
             autogrow(built.ta);
             // scrollHeight rounds up fractional line heights; snap to the
@@ -296,6 +526,7 @@ public enum LiveEditSupport {
             if (Math.abs(built.ta.getBoundingClientRect().height - unitHeight) <= 3) {
                 built.ta.style.height = unitHeight + 'px';
             }
+            active.baseHeight = built.ta.style.height;
             built.ta.focus();
             var len = built.ta.value.length;
             built.ta.setSelectionRange(len, len);
@@ -315,7 +546,8 @@ public enum LiveEditSupport {
             var built = buildEditor('', false);
             document.body.appendChild(built.wrap);
             active = { wrap: built.wrap, ta: built.ta, original: '', originalEl: null,
-                       start: 0, end: 0, isAppend: true, committed: false };
+                       start: 0, end: 0, isAppend: true, committed: false,
+                       above: [], below: [], baseWrapClass: null, baseTaClass: null, baseHeight: null };
             attachEvents(active);
             autogrow(built.ta);
             built.ta.focus();
@@ -383,6 +615,18 @@ public enum LiveEditSupport {
                        first: first.getAttribute('data-sourcepos'),
                        last: last.getAttribute('data-sourcepos') });
             }
+        });
+
+        // Older WebKit fires selectionchange at the document rather than the
+        // text control; maybeShrink is idempotent so double delivery is fine.
+        document.addEventListener('selectionchange', function() {
+            if (active) maybeShrink(active);
+        });
+        // Releasing a drag re-enables shrink and applies any pending retreat.
+        document.addEventListener('mouseup', function() {
+            if (!mouseHeld) return;
+            mouseHeld = false;
+            if (active) maybeShrink(active);
         });
 
         window.clearlySetLiveMode = function(on) {
