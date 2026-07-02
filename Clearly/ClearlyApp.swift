@@ -689,11 +689,19 @@ struct ViewModeCommands: View {
 
     var body: some View {
         Button {
+            mode?.wrappedValue = .live
+        } label: {
+            Label("Live", systemImage: "pencil.and.outline")
+        }
+        .keyboardShortcut("1", modifiers: .command)
+        .disabled(mode == nil)
+
+        Button {
             mode?.wrappedValue = .edit
         } label: {
             Label("Editor", systemImage: "square.and.pencil")
         }
-        .keyboardShortcut("1", modifiers: .command)
+        .keyboardShortcut("2", modifiers: .command)
         .disabled(mode == nil)
 
         Button {
@@ -701,7 +709,7 @@ struct ViewModeCommands: View {
         } label: {
             Label("Preview", systemImage: "eye")
         }
-        .keyboardShortcut("2", modifiers: .command)
+        .keyboardShortcut("3", modifiers: .command)
         .disabled(mode == nil)
     }
 }

@@ -30,6 +30,12 @@ struct PreviewView: NSViewRepresentable {
     var findState: FindState?
     var outlineState: OutlineState?
     var onTaskToggle: ((Int, Bool) -> Void)?
+    /// Live mode: replace source lines start...end (1-based, inclusive) with
+    /// new text. The third argument carries the original slice the editor was
+    /// opened on, so the receiver can drop stale commits.
+    var onLiveEdit: ((Int, Int, String, String) -> Void)?
+    /// Live mode: append a new block to the end of the document.
+    var onLiveAppend: ((String) -> Void)?
     var contentWidthEm: CGFloat? = nil
     var extraTopInset: CGFloat = 0
     @AppStorage("hideFrontmatterInPreview") private var hideFrontmatterInPreview = false
@@ -59,16 +65,20 @@ struct PreviewView: NSViewRepresentable {
         config.userContentController.add(context.coordinator, name: "taskToggle")
         config.userContentController.add(context.coordinator, name: "foldToggle")
         config.userContentController.add(context.coordinator, name: "selectionCapture")
+        config.userContentController.add(context.coordinator, name: "liveEdit")
         config.userContentController.addUserScript(PreviewUserScripts.codeBlockChromeScript())
         let webView = DraggableWKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = Theme.backgroundColor
         webView.alphaValue = 0 // hidden until content loads
+        context.coordinator.webView = webView
         context.coordinator.fileURL = fileURL
         context.coordinator.positionSyncID = positionSyncID
         context.coordinator.findState = findState
         context.coordinator.outlineState = outlineState
         context.coordinator.onTaskToggle = onTaskToggle
+        context.coordinator.onLiveEdit = onLiveEdit
+        context.coordinator.onLiveAppend = onLiveAppend
         let coordinator = context.coordinator
         findState?.previewNavigateToNext = { [weak coordinator] in
             coordinator?.navigateToNextMatch()
@@ -100,13 +110,18 @@ struct PreviewView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        webView.isHidden = mode != .preview
+        let isRendered = mode == .preview || mode == .live
+        let lastMode = context.coordinator.lastMode
+        let wasRendered = lastMode == .preview || lastMode == .live
+        webView.isHidden = !isRendered
         webView.underPageBackgroundColor = Theme.backgroundColor
         context.coordinator.fileURL = fileURL
         context.coordinator.positionSyncID = positionSyncID
 
-        // Detect mode change: restore scroll position when becoming visible
-        if mode == .preview && context.coordinator.lastMode != .preview {
+        // Detect mode change: restore scroll position when becoming visible.
+        // Live mode shares the preview surface, so preview <-> live switches
+        // keep the current scroll untouched.
+        if isRendered && !wasRendered {
             findState?.activeMode = .preview
             let fraction = ScrollBridge.fraction(for: positionSyncID)
             context.coordinator.scrollFraction = fraction
@@ -115,19 +130,28 @@ struct PreviewView: NSViewRepresentable {
             if findState?.isVisible == true {
                 context.coordinator.performFind(query: findState?.query ?? "")
             }
+            // Claim the keyboard so keystrokes stop flowing to the hidden editor.
+            DispatchQueue.main.async { [weak webView] in
+                guard let webView, let window = webView.window else { return }
+                window.makeFirstResponder(webView)
+            }
+        }
+        if lastMode != mode {
+            webView.evaluateJavaScript("window.clearlySetLiveMode && window.clearlySetLiveMode(\(mode == .live))")
         }
         context.coordinator.lastMode = mode
 
         // Skip expensive content rendering when preview is hidden.
         // When content changes while hidden, lastContentKey stays stale,
         // so the normal key comparison below will trigger a reload once visible.
-        guard mode == .preview else { return }
+        guard isRendered else { return }
 
         if context.coordinator.lastContentKey != contentKey {
             if context.coordinator.skipNextReload {
                 // Task toggle already updated the DOM; just sync the content key
                 context.coordinator.skipNextReload = false
                 context.coordinator.lastContentKey = contentKey
+                context.coordinator.renderedMarkdown = markdown
             } else {
                 loadHTML(in: webView, context: context)
             }
@@ -142,10 +166,12 @@ struct PreviewView: NSViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "taskToggle")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "foldToggle")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "selectionCapture")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "liveEdit")
     }
 
     private func loadHTML(in webView: WKWebView, context: Context) {
         context.coordinator.lastContentKey = contentKey
+        context.coordinator.renderedMarkdown = markdown
         context.coordinator.isLoadingContent = true
         let rawBody = MarkdownRenderer.renderHTML(markdown, includeFrontmatter: !hideFrontmatterInPreview)
         let htmlBody = LocalImageSupport.resolveImageSources(in: rawBody, relativeTo: fileURL)
@@ -317,6 +343,7 @@ struct PreviewView: NSViewRepresentable {
         \(MermaidSupport.scriptHTML)
         \(MermaidLightboxSupport.scriptHTML(for: htmlBody))
         \(SyntaxHighlightSupport.scriptHTML(for: htmlBody))
+        \(LiveEditSupport.scriptHTML)
         </html>
         """
         webView.loadHTMLString(html, baseURL: fileURL?.deletingLastPathComponent() ?? MermaidSupport.resourceBaseURL)
@@ -332,6 +359,11 @@ struct PreviewView: NSViewRepresentable {
         var findState: FindState?
         var outlineState: OutlineState?
         var onTaskToggle: ((Int, Bool) -> Void)?
+        var onLiveEdit: ((Int, Int, String, String) -> Void)?
+        var onLiveAppend: ((String) -> Void)?
+        /// The exact markdown the current DOM was rendered from — sourcepos
+        /// line numbers in the page are only valid against this text.
+        var renderedMarkdown = ""
         var skipNextReload = false
         var isLoadingContent = false
         var pendingScrollLine: Int?
@@ -680,6 +712,10 @@ struct PreviewView: NSViewRepresentable {
             }
             webView.alphaValue = 1
             applyPersistedFolds(in: webView)
+            // Reloads reset page state; re-enter live mode if that's where we are.
+            if lastMode == .live {
+                webView.evaluateJavaScript("window.clearlySetLiveMode && window.clearlySetLiveMode(true)")
+            }
             // Restore scroll position after HTML reload
             if scrollFraction > 0.01 {
                 let js = "var ms=Math.max(1,document.body.scrollHeight-window.innerHeight);window.scrollTo(0,\(scrollFraction)*ms);"
@@ -752,6 +788,37 @@ struct PreviewView: NSViewRepresentable {
                     DispatchQueue.main.async { [weak self] in
                         self?.onTaskToggle?(line, checked)
                     }
+                }
+                return
+            }
+
+            if message.name == "liveEdit", let body = message.body as? [String: Any],
+               let type = body["type"] as? String {
+                switch type {
+                case "requestEdit":
+                    guard let sourcepos = body["sourcepos"] as? String,
+                          let range = LiveEditSupport.lineRange(fromSourcepos: sourcepos),
+                          let source = LiveEditSupport.slice(renderedMarkdown, lines: range),
+                          let data = try? JSONSerialization.data(withJSONObject: source, options: .fragmentsAllowed),
+                          let json = String(data: data, encoding: .utf8) else { return }
+                    webView?.evaluateJavaScript("window.clearlyBeginEdit(\(range.lowerBound), \(range.upperBound), \(json))")
+                case "requestAppend":
+                    webView?.evaluateJavaScript("window.clearlyBeginAppend()")
+                case "commitEdit":
+                    guard let start = body["start"] as? Int,
+                          let end = body["end"] as? Int,
+                          let text = body["text"] as? String,
+                          let original = body["original"] as? String else { return }
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onLiveEdit?(start, end, original, text)
+                    }
+                case "appendBlock":
+                    guard let text = body["text"] as? String else { return }
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onLiveAppend?(text)
+                    }
+                default:
+                    break
                 }
                 return
             }

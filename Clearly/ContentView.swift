@@ -31,9 +31,10 @@ struct ContentView: View {
         self._document = document
         self.fileURL = fileURL
         // Never land a blank document in Preview — there'd be nothing to see
-        // and no obvious way to edit.
-        let raw = UserDefaults.standard.string(forKey: "defaultViewMode") ?? "edit"
-        let preferred = ViewMode(rawValue: raw) ?? .edit
+        // and no obvious way to edit. (Live is fine: it shows a click-to-
+        // start-writing affordance.)
+        let raw = UserDefaults.standard.string(forKey: "defaultViewMode") ?? "live"
+        let preferred = ViewMode(rawValue: raw) ?? .live
         let isBlank = document.wrappedValue.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         self._viewMode = State(initialValue: (preferred == .preview && isBlank) ? .edit : preferred)
     }
@@ -175,11 +176,31 @@ struct ContentView: View {
                 onTaskToggle: { line, checked in
                     toggleTask(line: line, checked: checked)
                 },
+                onLiveEdit: { start, end, original, text in
+                    applyLiveEdit(start: start, end: end, original: original, text: text)
+                },
+                onLiveAppend: { text in
+                    document.text = LiveEditSupport.appendingBlock(text, to: document.text)
+                },
                 contentWidthEm: contentWidthEm
             )
-            .opacity(viewMode == .preview ? 1 : 0)
-            .allowsHitTesting(viewMode == .preview)
+            .opacity(showsRenderedPane ? 1 : 0)
+            .allowsHitTesting(showsRenderedPane)
         }
+    }
+
+    private var showsRenderedPane: Bool {
+        viewMode == .preview || viewMode == .live
+    }
+
+    /// Replace source lines `start...end` (1-based, from the rendered page's
+    /// data-sourcepos) with the block text the user typed in live mode.
+    /// Compare-and-swap: the commit is dropped when those lines no longer
+    /// contain `original` (e.g. the file changed on disk mid-edit).
+    private func applyLiveEdit(start: Int, end: Int, original: String, text: String) {
+        guard let updated = LiveEditSupport.applyingEdit(to: document.text, start: start, end: end, original: original, replacement: text) else { return }
+        guard updated != document.text else { return }
+        document.text = updated
     }
 
     /// Toggle the `[ ]` / `[x]` on the source line that produced this rendered

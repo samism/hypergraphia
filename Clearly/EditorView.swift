@@ -262,6 +262,16 @@ struct EditorView: NSViewRepresentable {
                 context.coordinator.performFind()
             }
         }
+        // Leaving edit mode: give up the keyboard. The editor is hidden but
+        // still alive in the ZStack — if it stays first responder, keystrokes
+        // keep editing the document invisibly behind the rendered view.
+        if mode != .edit && context.coordinator.lastMode == .edit {
+            DispatchQueue.main.async {
+                if let window = textView.window, window.firstResponder === textView {
+                    window.makeFirstResponder(nil)
+                }
+            }
+        }
         context.coordinator.lastMode = mode
 
         context.coordinator.updateCount += 1

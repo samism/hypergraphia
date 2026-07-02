@@ -18,7 +18,7 @@ struct SettingsView: View {
     @AppStorage("hideFrontmatterInPreview") private var hideFrontmatterInPreview = false
     @AppStorage("keepRunningMenubarOnly") private var keepRunningMenubarOnly = true
     @AppStorage("launchBehavior") private var launchBehavior = "filePicker"
-    @AppStorage("defaultViewMode") private var defaultViewMode = "edit"
+    @AppStorage("defaultViewMode") private var defaultViewMode = "live"
     @AppStorage("scratchpadRetentionMode") private var scratchpadRetentionMode = "all"
     @AppStorage("scratchpadRetentionDays") private var scratchpadRetentionDays = 90
     @AppStorage("scratchpadRetentionCount") private var scratchpadRetentionCount = 100
@@ -71,6 +71,7 @@ struct SettingsView: View {
             }
 
             Picker("Default View Mode", selection: $defaultViewMode) {
+                Text("Live").tag("live")
                 Text("Editor").tag("edit")
                 Text("Preview").tag("preview")
             }

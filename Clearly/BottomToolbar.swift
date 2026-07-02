@@ -187,6 +187,7 @@ private struct ModePill: View {
     var body: some View {
         if #available(macOS 26.0, *) {
             HStack(spacing: 2) {
+                segment(.live, title: "Live", systemImage: "pencil.and.outline")
                 segment(.edit, title: "Edit", systemImage: "pencil")
                 segment(.preview, title: "Preview", systemImage: "eye")
             }
@@ -194,6 +195,7 @@ private struct ModePill: View {
             .glassEffect(.regular, in: .capsule)
         } else {
             HStack(spacing: 2) {
+                segment(.live, title: "Live", systemImage: "pencil.and.outline")
                 segment(.edit, title: "Edit", systemImage: "pencil")
                 segment(.preview, title: "Preview", systemImage: "eye")
             }
