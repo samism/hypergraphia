@@ -140,6 +140,7 @@ public enum LiveEditSupport {
         var pending = null;   // element awaiting a clearlyBeginEdit reply
         var active = null;    // {editor, textarea, original, start, end, isAppend, committed}
         var clearNext = false; // empty the next opened editor (selection delete)
+        var caretStartNext = false; // place the next opened editor's caret at 0
         var mouseHeld = false; // suppress shrink while a drag is in progress
         // Full markdown source (sourceScriptHTML), powering selection
         // expansion across block boundaries.
@@ -420,6 +421,20 @@ public enum LiveEditSupport {
                 // extends by paragraph (option+up/down) or word (option+
                 // left/right) into the absorbed text.
                 var ta = a.ta;
+                // A plain arrow with the caret at the very start or end
+                // travels to the neighboring block. (WebKit already moves the
+                // caret to the boundary when an arrow can't move further, so
+                // from anywhere in the block two presses walk out of it.)
+                if (!e.shiftKey && !e.metaKey && !e.altKey && !e.ctrlKey && !e.isComposing
+                    && ta.selectionStart === ta.selectionEnd) {
+                    if ((e.key === 'ArrowDown' || e.key === 'ArrowRight')
+                        && ta.selectionEnd === ta.value.length) {
+                        if (travel(a, false)) { e.preventDefault(); e.stopPropagation(); return; }
+                    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowLeft')
+                               && ta.selectionStart === 0) {
+                        if (travel(a, true)) { e.preventDefault(); e.stopPropagation(); return; }
+                    }
+                }
                 if (e.shiftKey && e.metaKey && !e.altKey && e.key === 'ArrowDown') {
                     expandActive(a, false, true);
                 } else if (e.shiftKey && e.metaKey && !e.altKey && e.key === 'ArrowUp') {
@@ -530,6 +545,12 @@ public enum LiveEditSupport {
             built.ta.focus();
             var len = built.ta.value.length;
             built.ta.setSelectionRange(len, len);
+            if (caretStartNext) {
+                // Arrow-key travel into this block from above lands at the
+                // beginning, like a continuous document.
+                caretStartNext = false;
+                built.ta.setSelectionRange(0, 0);
+            }
             if (clearNext) {
                 // Selection delete: this block survives, but cleared. The
                 // original stays intact so the commit/delete paths verify
@@ -557,7 +578,7 @@ public enum LiveEditSupport {
         // Opens the editor for the deepest editable block that starts at or
         // nearest above the given source line (used after deleting a block to
         // land the caret in its predecessor).
-        function editBlockAtOrAbove(line, clear) {
+        function editBlockAtOrAbove(line, clear, caretStart) {
             var best = null;
             var bestLine = -1;
             document.querySelectorAll('.live-block').forEach(function(el) {
@@ -571,13 +592,71 @@ public enum LiveEditSupport {
             });
             if (!best) return;
             clearNext = !!clear;
+            caretStartNext = !!caretStart;
             pending = { el: best };
             post({ type: 'requestEdit', sourcepos: best.getAttribute('data-sourcepos') });
         }
 
-        window.clearlyEditBlockAtLine = function(line, clear) {
-            if (live) editBlockAtOrAbove(line, clear);
+        window.clearlyEditBlockAtLine = function(line, clear, caretStart) {
+            if (live) editBlockAtOrAbove(line, clear, caretStart);
         };
+
+        // Arrow-key travel: a plain arrow at the editor's very start or end
+        // moves the caret into the neighboring block — the current block
+        // leaves edit mode (committing as usual) and the neighbor enters it.
+        function travel(a, up) {
+            var target = null;
+            blockRanges().forEach(function(r) {
+                if (up) {
+                    if (r.end < a.start && (!target || r.start > target.start)) target = r;
+                } else {
+                    if (r.start > a.end && (!target || r.end < target.end)) target = r;
+                }
+            });
+            var value = a.ta.value;
+            var changed = a.isAppend ? value.trim().length > 0 : value !== a.original;
+            if (a.isAppend) {
+                // Only the unchanged empty append editor travels (up, to the
+                // last block); otherwise leave the caret where it is.
+                if (up && !changed) {
+                    a.committed = true;
+                    a.wrap.remove();
+                    active = null;
+                    editBlockAtOrAbove(Number.MAX_SAFE_INTEGER, false, false);
+                    return true;
+                }
+                return false;
+            }
+            if (!target) return false;
+            if (!changed) {
+                // Nothing to commit: restore this block in place and open the
+                // neighbor directly, no reload needed.
+                closeActive(true);
+                clearNext = false;
+                caretStartNext = !up;
+                pending = { el: target.el };
+                post({ type: 'requestEdit', sourcepos: target.el.getAttribute('data-sourcepos') });
+                return true;
+            }
+            a.committed = true;
+            a.ta.readOnly = true;
+            active = null;
+            if (value.trim() === '') {
+                // Leaving an emptied block deletes it; land in the neighbor.
+                post({ type: 'deleteBlock', start: a.start, end: a.end, original: a.original,
+                       reopen: up ? 'prev' : 'next' });
+                return true;
+            }
+            // Commit, then reopen the neighbor after the reload. Downward the
+            // neighbor's line shifts by however many lines this commit added
+            // or removed; upward it is untouched.
+            var newLine = up
+                ? target.start
+                : target.start + (value.split('\\n').length - (a.end - a.start + 1));
+            post({ type: 'commitEdit', start: a.start, end: a.end, text: value, original: a.original,
+                   reopenLine: newLine, reopenCaretStart: !up });
+            return true;
+        }
 
         // Backspace/Delete over a selection: every touched block is deleted
         // except the first, which reopens cleared — the multi-block analogue
@@ -728,6 +807,7 @@ public enum LiveEditSupport {
                 e.preventDefault();
                 e.stopPropagation();
                 clearNext = false;
+                caretStartNext = false;
                 pending = { el: block };
                 post({ type: 'requestEdit', sourcepos: block.getAttribute('data-sourcepos') });
                 return;
