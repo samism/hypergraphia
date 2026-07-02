@@ -149,6 +149,7 @@ private struct FolderListView: View {
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 8)
                     }
                 }
@@ -278,35 +279,33 @@ private struct FileRow: View {
     let onTap: () -> Void
     let onRename: () -> Void
     let onDelete: () -> Void
-    @State private var isHovered = false
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: onTap) {
-            Text(file.displayName)
-                .font(.system(size: 12, weight: isCurrent ? .medium : .regular))
-                .foregroundStyle(isCurrent ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 12)
-                .padding(.trailing, 8)
-                .padding(.vertical, 5)
+            HStack(spacing: 0) {
+                Text(file.displayName)
+                    .font(.system(size: 12, weight: isCurrent ? .medium : .regular))
+                    .foregroundStyle(isCurrent ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 8)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .pointerStyle(.link)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isCurrent || isHovered
+                .fill(isCurrent
                     ? Theme.hoverColor(inDark: colorScheme == .dark)
                     : Color.clear)
                 .padding(.horizontal, 4)
         )
-        .onHover { hovering in
-            withAnimation(Theme.Motion.hover) {
-                isHovered = hovering
-            }
-        }
         .contextMenu {
             Button("Rename…") {
                 onRename()
