@@ -41,8 +41,8 @@ struct SidebarView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            modeTab("OUTLINE", .outline)
             modeTab("FILES", .folder)
+            modeTab("OUTLINE", .outline)
             Spacer()
             if mode == .folder && folderState.folderURL != nil {
                 newFileButton
@@ -122,6 +122,8 @@ private struct FolderListView: View {
                                     isCurrent: file.url.standardizedFileURL == currentFileURL?.standardizedFileURL
                                 ) {
                                     openMarkdownDocument(at: file.url, from: folderURL)
+                                } onDelete: {
+                                    delete(file)
                                 }
                             }
                         }
@@ -174,12 +176,22 @@ private struct FolderListView: View {
         .help("Change folder")
         .accessibilityLabel("Folder \(folderURL.lastPathComponent). Change folder")
     }
+
+    private func delete(_ file: FolderFile) {
+        do {
+            try FileManager.default.trashItem(at: file.url, resultingItemURL: nil)
+            folderState.refresh()
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
 }
 
 private struct FileRow: View {
     let file: FolderFile
     let isCurrent: Bool
     let onTap: () -> Void
+    let onDelete: () -> Void
     @State private var isHovered = false
     @Environment(\.colorScheme) private var colorScheme
 
@@ -209,6 +221,11 @@ private struct FileRow: View {
                 isHovered = hovering
             }
         }
+        .contextMenu {
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        }
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
     }
 }
@@ -228,18 +245,35 @@ enum FolderPanel {
 }
 
 /// Opens a markdown file as a document window. When it came from a folder
-/// sidebar, stages that folder so the new window's `ContentView` adopts it
-/// (folder mode, same folder) on appear.
+/// sidebar, stages that folder so the opened document's `ContentView` adopts
+/// it (folder mode, same folder) on appear.
 @MainActor
-func openMarkdownDocument(at url: URL, from folder: URL?) {
+func openMarkdownDocument(at url: URL, from folder: URL?, tabbingInto sourceWindow: NSWindow? = nil) {
+    let sourceWindow = sourceWindow ?? NSApp.keyWindow
     if let folder {
         FolderHandoff.stage(folder: folder, forOpening: url)
     }
-    NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+    NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { document, _, error in
+        if let error {
+            NSAlert(error: error).runModal()
+            return
+        }
+        guard let sourceWindow,
+              sourceWindow.isVisible,
+              let targetWindow = document?.windowControllers.compactMap(\.window).first,
+              targetWindow !== sourceWindow else { return }
+
+        sourceWindow.tabbingMode = .preferred
+        targetWindow.tabbingMode = .preferred
+        if sourceWindow.tabbedWindows?.contains(where: { $0 === targetWindow }) != true {
+            sourceWindow.addTabbedWindow(targetWindow, ordered: .above)
+        }
+        targetWindow.makeKeyAndOrderFront(nil)
+    }
 }
 
-/// Hands folder context from the window that initiated an open to the new
-/// document window. Keyed by standardized file URL, claimed once, and
+/// Hands folder context from the window that initiated an open to the opened
+/// document view. Keyed by standardized file URL, claimed once, and
 /// time-limited: when the document was already open (no new ContentView
 /// appears), the stale entry must not make that file adopt the folder at
 /// some unrelated later open.
