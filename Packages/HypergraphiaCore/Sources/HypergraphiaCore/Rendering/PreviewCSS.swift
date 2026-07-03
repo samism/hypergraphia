@@ -992,7 +992,7 @@ public enum PreviewCSS {
         }
         body.live-mode .live-block {
             cursor: text;
-            border-radius: 4px;
+            border-radius: 3px;
             transition: box-shadow 0.12s ease, background-color 0.12s ease;
         }
         body.live-mode .live-block:hover {
