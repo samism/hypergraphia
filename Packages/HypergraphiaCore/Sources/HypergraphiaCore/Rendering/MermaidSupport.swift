@@ -19,10 +19,51 @@ public enum MermaidSupport {
         <script>
         (function() {
             var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            // Diagrams dress like the document: colors come from the theme's
+            // CSS variables and the label font is the body font, so mermaid
+            // follows the user's font choice and light/dark appearance.
+            var styles = getComputedStyle(document.body);
+            function v(name) { return styles.getPropertyValue(name).trim(); }
+            var labelSize = Math.round(parseFloat(styles.fontSize) * 0.85) + 'px';
             mermaid.initialize({
                 startOnLoad: false,
-                theme: isDark ? 'dark' : 'neutral',
-                securityLevel: 'antiscript'
+                securityLevel: 'antiscript',
+                theme: 'base',
+                themeVariables: {
+                    darkMode: isDark,
+                    fontFamily: styles.fontFamily,
+                    fontSize: labelSize,
+                    background: v('--c-bg'),
+                    mainBkg: v('--c-pre-bg'),
+                    primaryColor: v('--c-pre-bg'),
+                    primaryTextColor: v('--c-text'),
+                    primaryBorderColor: v('--c-border-strong'),
+                    secondaryColor: v('--c-blockquote-bg'),
+                    secondaryBorderColor: v('--c-border-subtle'),
+                    tertiaryColor: v('--c-row-hover-bg'),
+                    tertiaryBorderColor: v('--c-border-subtle'),
+                    textColor: v('--c-text'),
+                    nodeTextColor: v('--c-text'),
+                    titleColor: v('--c-text'),
+                    lineColor: v('--c-caption'),
+                    edgeLabelBackground: v('--c-bg'),
+                    clusterBkg: v('--c-blockquote-bg'),
+                    clusterBorder: v('--c-border-subtle'),
+                    actorBkg: v('--c-pre-bg'),
+                    actorBorder: v('--c-border-strong'),
+                    actorTextColor: v('--c-text'),
+                    actorLineColor: v('--c-caption'),
+                    signalColor: v('--c-caption'),
+                    signalTextColor: v('--c-text'),
+                    labelBoxBkgColor: v('--c-pre-bg'),
+                    labelBoxBorderColor: v('--c-border-strong'),
+                    labelTextColor: v('--c-text'),
+                    loopTextColor: v('--c-text'),
+                    noteBkgColor: v('--c-blockquote-bg'),
+                    noteTextColor: v('--c-text'),
+                    noteBorderColor: v('--c-border-subtle')
+                },
+                flowchart: { curve: 'basis' }
             });
             document.querySelectorAll('pre code.language-mermaid').forEach(function(codeEl) {
                 var pre = codeEl.parentElement;

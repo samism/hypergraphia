@@ -1261,6 +1261,17 @@ public enum PreviewCSS {
             height: auto;
         }
 
+        /* Mermaid polish: rounded nodes and hairline strokes so diagrams
+           match the document's card styling. */
+        .mermaid .node rect, .mermaid .actor, .mermaid .labelBox {
+            rx: 6px;
+            ry: 6px;
+        }
+        .mermaid .node rect, .mermaid .node polygon, .mermaid .node circle,
+        .mermaid .actor, .mermaid .labelBox, .mermaid .cluster rect {
+            stroke-width: 1px;
+        }
+
         .mermaid-wrapper {
             position: relative;
             display: block;
