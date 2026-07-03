@@ -556,8 +556,35 @@ public enum LiveEditSupport {
             beginInsertAfter(line);
         };
 
+        // Keep the editor's presentation in step with its markdown while
+        // typing: adding/removing leading #'s rescales between heading
+        // levels immediately, and deleting the last # drops the block to
+        // body-text scale — no need to leave the editor first.
+        function syncHeadingScale(a) {
+            if (a.ta.classList.contains('live-mono')) return;
+            var m = a.ta.value.split('\\n', 1)[0].match(/^\\s{0,3}(#{1,6})\\s/);
+            var next = m ? 'live-h' + m[1].length : null;
+            var changed = false;
+            for (var i = 1; i <= 6; i++) {
+                var cls = 'live-h' + i;
+                if (cls !== next && a.wrap.classList.contains(cls)) {
+                    a.wrap.classList.remove(cls);
+                    changed = true;
+                }
+            }
+            if (next && !a.wrap.classList.contains(next)) {
+                a.wrap.classList.add(next);
+                changed = true;
+            }
+            if (changed) {
+                a.ta.style.height = '';
+                autogrow(a.ta);
+            }
+        }
+
         function attachEvents(a) {
             a.ta.addEventListener('input', function() {
+                syncHeadingScale(a);
                 autogrow(a.ta);
                 // First keystroke in any editor — native side auto-creates
                 // a file for untitled documents.
