@@ -99,6 +99,9 @@ private struct FolderListView: View {
                                 } onDelete: {
                                     delete(file)
                                 } onRenameCommit: { newName in
+                                    // Guarded: the focus-loss and click-away
+                                    // paths can both fire for one dismissal.
+                                    guard renamingFileURL == file.url else { return }
                                     renamingFileURL = nil
                                     performRename(file, to: newName)
                                 } onRenameCancel: {
@@ -290,7 +293,9 @@ private struct FileRow: View {
     }
 
     /// In-place editor replacing the row while renaming: Return commits,
-    /// Escape cancels, clicking away commits (Finder-style).
+    /// Escape cancels, clicking away commits (Finder-style). Clicks on
+    /// non-focusable areas don't move focus off a text field, so a monitor
+    /// sharing the field's frame catches those and commits explicitly.
     private var renameField: some View {
         TextField("", text: $draftName)
             .textFieldStyle(.plain)
@@ -315,6 +320,11 @@ private struct FileRow: View {
                     .fill(Theme.hoverColor(inDark: colorScheme == .dark))
                     .padding(.horizontal, 4)
             )
+            .background(
+                ClickOutsideMonitor {
+                    onRenameCommit(draftName)
+                }
+            )
             .onAppear {
                 draftName = file.displayName
                 DispatchQueue.main.async {
@@ -322,6 +332,54 @@ private struct FileRow: View {
                 }
             }
             .accessibilityLabel("Rename \(file.displayName)")
+    }
+}
+
+/// Invisible view matching its host's frame that watches for mouse-downs
+/// landing outside it (in the same window) and reports them — used to end
+/// inline rename when the user clicks anywhere else.
+private struct ClickOutsideMonitor: NSViewRepresentable {
+    let onClickOutside: () -> Void
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        view.onClickOutside = onClickOutside
+        return view
+    }
+
+    func updateNSView(_ view: MonitorView, context: Context) {
+        view.onClickOutside = onClickOutside
+    }
+
+    final class MonitorView: NSView {
+        var onClickOutside: (() -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window != nil, monitor == nil {
+                monitor = NSEvent.addLocalMonitorForEvents(
+                    matching: [.leftMouseDown, .rightMouseDown]
+                ) { [weak self] event in
+                    if let self, let window = self.window, event.window === window {
+                        let point = self.convert(event.locationInWindow, from: nil)
+                        if !self.bounds.contains(point) {
+                            self.onClickOutside?()
+                        }
+                    }
+                    return event
+                }
+            } else if window == nil, let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
     }
 }
 
