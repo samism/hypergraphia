@@ -235,16 +235,51 @@ public enum LiveEditSupport {
             return el.closest('.code-block-wrapper, .table-shell, .mermaid-wrapper') || el;
         }
 
+        function parseSourcepos(sp) {
+            var m = /^(\\d+):\\d+-(\\d+):(\\d+)$/.exec(sp || '');
+            if (!m) return null;
+            return { start: parseInt(m[1], 10),
+                     end: parseInt(m[2], 10) - (m[3] === '0' ? 1 : 0) };
+        }
+
+        // A list item's OWN lines: cmark's sourcepos spans the whole item
+        // including nested sublists, but items are per-line blocks — the
+        // range stops where the first nested sublist starts.
+        function itemOwnRange(li) {
+            var r = parseSourcepos(li.getAttribute('data-sourcepos'));
+            if (!r) return null;
+            li.querySelectorAll(':scope > ul[data-sourcepos], :scope > ol[data-sourcepos]').forEach(function(sub) {
+                var s = parseSourcepos(sub.getAttribute('data-sourcepos'));
+                if (s && s.start - 1 < r.end) r.end = s.start - 1;
+            });
+            if (r.end < r.start) r.end = r.start;
+            return r;
+        }
+
+        function rangeFor(el) {
+            return el.tagName === 'LI'
+                ? itemOwnRange(el)
+                : parseSourcepos(el.getAttribute('data-sourcepos'));
+        }
+
+        // Sourcepos string describing the block's editable lines — for list
+        // items a synthesized own-line span, otherwise the cmark attribute.
+        function sourceposFor(el) {
+            if (el.tagName === 'LI') {
+                var r = itemOwnRange(el);
+                if (r) return r.start + ':1-' + r.end + ':1';
+            }
+            return el.getAttribute('data-sourcepos');
+        }
+
         // Rendered blocks by source position (the active editor's block is
         // swapped out of the DOM, so it never appears here).
         function blockRanges() {
             var ranges = [];
             document.querySelectorAll('.live-block').forEach(function(el) {
-                var m = /^(\\d+):\\d+-(\\d+):(\\d+)$/.exec(el.getAttribute('data-sourcepos') || '');
-                if (!m) return;
-                ranges.push({ el: el,
-                              start: parseInt(m[1], 10),
-                              end: parseInt(m[2], 10) - (m[3] === '0' ? 1 : 0) });
+                var r = rangeFor(el);
+                if (!r) return;
+                ranges.push({ el: el, start: r.start, end: r.end });
             });
             return ranges;
         }
@@ -434,6 +469,14 @@ public enum LiveEditSupport {
             a.above = [];
             if (a.isAppend || a.isInsert) {
                 a.wrap.remove();
+            } else if (a.liHost) {
+                // Put the item's own-line content back in front of any
+                // nested sublists.
+                a.wrap.remove();
+                for (var k = a.liKept.length - 1; k >= 0; k--) {
+                    a.liHost.insertBefore(a.liKept[k], a.liHost.firstChild);
+                }
+                a.liHost.classList.remove('live-editing');
             } else if (a.originalEl) {
                 a.wrap.replaceWith(a.originalEl);
             }
@@ -525,17 +568,21 @@ public enum LiveEditSupport {
                 // extends by paragraph (option+up/down) or word (option+
                 // left/right) into the absorbed text.
                 var ta = a.ta;
-                // A plain arrow with the caret at the very start or end
-                // travels to the neighboring block. (WebKit already moves the
-                // caret to the boundary when an arrow can't move further, so
-                // from anywhere in the block two presses walk out of it.)
+                // Plain vertical arrows on the editor's first/last source
+                // line travel to the neighboring block; horizontal arrows
+                // travel from the very start/end. The caret always lands at
+                // the END of the entered block, so repeated Up/Down walks
+                // blocks without the caret bouncing between line ends.
                 if (!e.shiftKey && !e.metaKey && !e.altKey && !e.ctrlKey && !e.isComposing
                     && ta.selectionStart === ta.selectionEnd) {
-                    if ((e.key === 'ArrowDown' || e.key === 'ArrowRight')
-                        && ta.selectionEnd === ta.value.length) {
+                    var onLastLine = ta.value.indexOf('\\n', ta.selectionEnd) === -1;
+                    var onFirstLine = ta.selectionStart === 0
+                        || ta.value.lastIndexOf('\\n', ta.selectionStart - 1) === -1;
+                    if ((e.key === 'ArrowDown' && onLastLine)
+                        || (e.key === 'ArrowRight' && ta.selectionEnd === ta.value.length)) {
                         if (travel(a, false)) { e.preventDefault(); e.stopPropagation(); return; }
-                    } else if ((e.key === 'ArrowUp' || e.key === 'ArrowLeft')
-                               && ta.selectionStart === 0) {
+                    } else if ((e.key === 'ArrowUp' && onFirstLine)
+                               || (e.key === 'ArrowLeft' && ta.selectionStart === 0)) {
                         if (travel(a, true)) { e.preventDefault(); e.stopPropagation(); return; }
                     }
                 }
@@ -642,33 +689,76 @@ public enum LiveEditSupport {
             if (/^H[1-6]$/.test(el.tagName)) {
                 built.wrap.classList.add('live-' + el.tagName.toLowerCase());
             }
-            // Swap out the whole visual unit — wrapper chrome (copy/fold
-            // buttons, table shells, mermaid zoom icons) must not float
-            // around the bare editor.
-            var unit = unitFor(el);
-            // The code filename header is a sibling outside the wrapper.
-            var header = null;
-            if (unit.previousElementSibling && unit.previousElementSibling.classList.contains('code-filename')) {
-                header = unit.previousElementSibling;
-                header.style.display = 'none';
+            if (el.tagName === 'LI') {
+                // List items edit in place, one line at a time: only the
+                // item's own-line content swaps for the editor; nested
+                // sublists stay rendered inside the item.
+                var kept = [];
+                Array.prototype.slice.call(el.childNodes).forEach(function(n) {
+                    if (n.nodeType === 1 && (n.tagName === 'UL' || n.tagName === 'OL')) return;
+                    kept.push(n);
+                    el.removeChild(n);
+                });
+                el.classList.add('live-editing');
+                el.insertBefore(built.wrap, el.firstChild);
+                // In-place editing must not disturb the item's vertical
+                // rhythm — the editor is a line within the li, not a
+                // swapped-in block with its own margins.
+                built.wrap.style.marginTop = '0';
+                built.wrap.style.marginBottom = '0';
+                // Hang the markdown prefix (indent, marker, checkbox) out
+                // into the marker gutter so the item's TEXT stays exactly
+                // where it rendered.
+                var prefixMatch = source.match(/^\\s*(?:[-*+]|\\d+[.)])\\s+(?:\\[[ xX]\\]\\s+)?/);
+                if (prefixMatch) {
+                    var probe = document.createElement('span');
+                    probe.textContent = prefixMatch[0];
+                    var taStyle = getComputedStyle(built.ta);
+                    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;';
+                    probe.style.font = taStyle.font;
+                    probe.style.letterSpacing = taStyle.letterSpacing;
+                    document.body.appendChild(probe);
+                    var prefixWidth = probe.getBoundingClientRect().width;
+                    probe.remove();
+                    built.wrap.style.marginLeft = (-prefixWidth) + 'px';
+                    built.wrap.style.width = 'calc(100% + ' + prefixWidth + 'px)';
+                }
+                active = { wrap: built.wrap, ta: built.ta, original: source, originalEl: null,
+                           liHost: el, liKept: kept,
+                           header: null, start: start, end: end, isAppend: false, committed: false,
+                           above: [], below: [], baseWrapClass: null, baseTaClass: null, baseHeight: null };
+                attachEvents(active);
+                autogrow(built.ta);
+                active.baseHeight = built.ta.style.height;
+            } else {
+                // Swap out the whole visual unit — wrapper chrome (copy/fold
+                // buttons, table shells, mermaid zoom icons) must not float
+                // around the bare editor.
+                var unit = unitFor(el);
+                // The code filename header is a sibling outside the wrapper.
+                var header = null;
+                if (unit.previousElementSibling && unit.previousElementSibling.classList.contains('code-filename')) {
+                    header = unit.previousElementSibling;
+                    header.style.display = 'none';
+                }
+                // Keep the replaced block's vertical rhythm so nothing jumps.
+                var cs = getComputedStyle(unit);
+                var unitHeight = unit.getBoundingClientRect().height;
+                built.wrap.style.marginTop = cs.marginTop;
+                built.wrap.style.marginBottom = cs.marginBottom;
+                unit.replaceWith(built.wrap);
+                active = { wrap: built.wrap, ta: built.ta, original: source, originalEl: unit,
+                           header: header, start: start, end: end, isAppend: false, committed: false,
+                           above: [], below: [], baseWrapClass: null, baseTaClass: null, baseHeight: null };
+                attachEvents(active);
+                autogrow(built.ta);
+                // scrollHeight rounds up fractional line heights; snap to the
+                // replaced block's exact height so the page below doesn't shift.
+                if (Math.abs(built.ta.getBoundingClientRect().height - unitHeight) <= 3) {
+                    built.ta.style.height = unitHeight + 'px';
+                }
+                active.baseHeight = built.ta.style.height;
             }
-            // Keep the replaced block's vertical rhythm so nothing jumps.
-            var cs = getComputedStyle(unit);
-            var unitHeight = unit.getBoundingClientRect().height;
-            built.wrap.style.marginTop = cs.marginTop;
-            built.wrap.style.marginBottom = cs.marginBottom;
-            unit.replaceWith(built.wrap);
-            active = { wrap: built.wrap, ta: built.ta, original: source, originalEl: unit,
-                       header: header, start: start, end: end, isAppend: false, committed: false,
-                       above: [], below: [], baseWrapClass: null, baseTaClass: null, baseHeight: null };
-            attachEvents(active);
-            autogrow(built.ta);
-            // scrollHeight rounds up fractional line heights; snap to the
-            // replaced block's exact height so the page below doesn't shift.
-            if (Math.abs(built.ta.getBoundingClientRect().height - unitHeight) <= 3) {
-                built.ta.style.height = unitHeight + 'px';
-            }
-            active.baseHeight = built.ta.style.height;
             built.ta.focus();
             var len = built.ta.value.length;
             built.ta.setSelectionRange(len, len);
@@ -711,19 +801,18 @@ public enum LiveEditSupport {
             var best = null;
             var bestLine = -1;
             document.querySelectorAll('.live-block').forEach(function(el) {
-                var m = /^(\\d+):/.exec(el.getAttribute('data-sourcepos') || '');
-                if (!m) return;
-                var startLine = parseInt(m[1], 10);
-                if (startLine <= line && startLine > bestLine) {
+                var r = rangeFor(el);
+                if (!r) return;
+                if (r.start <= line && r.start > bestLine) {
                     best = el;
-                    bestLine = startLine;
+                    bestLine = r.start;
                 }
             });
             if (!best) return;
             clearNext = !!clear;
             caretStartNext = !!caretStart;
             pending = { el: best };
-            post({ type: 'requestEdit', sourcepos: best.getAttribute('data-sourcepos') });
+            post({ type: 'requestEdit', sourcepos: sourceposFor(best) });
         }
 
         window.clearlyEditBlockAtLine = function(line, clear, caretStart) {
@@ -763,9 +852,9 @@ public enum LiveEditSupport {
                 // neighbor directly, no reload needed.
                 closeActive(true);
                 clearNext = false;
-                caretStartNext = !up;
+                caretStartNext = false;
                 pending = { el: target.el };
-                post({ type: 'requestEdit', sourcepos: target.el.getAttribute('data-sourcepos') });
+                post({ type: 'requestEdit', sourcepos: sourceposFor(target.el) });
                 return true;
             }
             a.committed = true;
@@ -784,7 +873,7 @@ public enum LiveEditSupport {
                 ? target.start
                 : target.start + (value.split('\\n').length - (a.end - a.start + 1));
             post({ type: 'commitEdit', start: a.start, end: a.end, text: value, original: a.original,
-                   reopenLine: newLine, reopenCaretStart: !up });
+                   reopenLine: newLine });
             return true;
         }
 
@@ -962,7 +1051,7 @@ public enum LiveEditSupport {
                 clearNext = false;
                 caretStartNext = false;
                 pending = { el: block };
-                post({ type: 'requestEdit', sourcepos: block.getAttribute('data-sourcepos') });
+                post({ type: 'requestEdit', sourcepos: sourceposFor(block) });
                 return;
             }
             // Click on empty space below the content appends a new block.

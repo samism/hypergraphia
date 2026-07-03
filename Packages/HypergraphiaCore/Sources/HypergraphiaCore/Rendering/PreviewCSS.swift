@@ -1001,6 +1001,29 @@ public enum PreviewCSS {
         /* Blocks that carry their own card background keep it (and their own
            radius) on hover — repainting them with the tint reads as flicker.
            The halo alone marks them. */
+        /* List items are per-line blocks: only the innermost hovered item
+           tints (ancestors stay quiet), the halo is dropped (it would wrap
+           the whole subtree box), and nested sublists mask the parent's
+           tint so a parent's hover reads as its own line only. */
+        body.live-mode li.live-block:hover {
+            box-shadow: none;
+        }
+        body.live-mode li.live-block:has(li.live-block:hover) {
+            background-color: transparent;
+        }
+        body.live-mode li.live-block > ul,
+        body.live-mode li.live-block > ol {
+            background: var(--c-bg);
+        }
+        /* The raw source in the editor shows the marker; hide the rendered
+           bullet while its line is being edited, and keep the hover tint
+           off the host item (the editor is the focus, not the row). */
+        body.live-mode li.live-editing {
+            list-style: none;
+        }
+        body.live-mode li.live-editing:hover {
+            background-color: transparent;
+        }
         body.live-mode pre.live-block { border-radius: 8px; }
         body.live-mode pre.live-block:hover { background-color: var(--c-pre-bg); }
         body.live-mode .frontmatter.live-block { border-radius: 8px; }
