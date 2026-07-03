@@ -506,6 +506,7 @@ struct HypergraphiaApp: App {
             CommandGroup(after: .toolbar) {
                 ViewModeCommands()
                 OutlineToggleCommand()
+                OutlineModeCommand()
                 LineNumbersToggleCommand()
                 BottomToolbarVisibilityCommand()
             }
@@ -767,6 +768,32 @@ struct OutlineToggleCommand: View {
             Label("Toggle Sidebar", systemImage: "sidebar.left")
         }
         .keyboardShortcut("o", modifiers: [.command, .shift])
+        .disabled(outlineState == nil)
+    }
+}
+
+/// View ▸ Show/Hide Outline: flips the sidebar between the document outline
+/// and the file list. Shared `@AppStorage` keeps every window in step, and
+/// showing the outline also reveals the sidebar when it's hidden — otherwise
+/// the command would appear to do nothing.
+struct OutlineModeCommand: View {
+    @AppStorage("sidebarMode") private var sidebarMode: SidebarMode = .folder
+    @FocusedValue(\.outlineState) var outlineState
+
+    var body: some View {
+        Button {
+            if sidebarMode == .outline {
+                sidebarMode = .folder
+            } else {
+                sidebarMode = .outline
+                outlineState?.isVisible = true
+            }
+        } label: {
+            Label(
+                sidebarMode == .outline ? "Hide Outline" : "Show Outline",
+                systemImage: "list.bullet.indent"
+            )
+        }
         .disabled(outlineState == nil)
     }
 }
