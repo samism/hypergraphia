@@ -1370,7 +1370,9 @@ public enum PreviewCSS {
         }
         .mermaid-lightbox-controls {
             position: absolute;
-            bottom: max(20px, env(safe-area-inset-bottom, 0px));
+            /* Clear of the floating mode toolbar + word count at the
+               window's bottom edge. */
+            bottom: max(84px, calc(env(safe-area-inset-bottom, 0px) + 64px));
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -1407,8 +1409,10 @@ public enum PreviewCSS {
         }
         .mermaid-lightbox-close {
             position: absolute;
-            top: max(16px, env(safe-area-inset-top, 0px));
-            right: max(16px, env(safe-area-inset-right, 0px));
+            /* Clear of the tab strip band (and its + button) at the
+               window's top edge. */
+            top: max(64px, calc(env(safe-area-inset-top, 0px) + 48px));
+            right: max(28px, env(safe-area-inset-right, 0px));
             width: 36px;
             height: 36px;
             display: flex;
