@@ -93,6 +93,15 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
                 self?.updateActivationPolicy()
             }
         })
+
+        // First launch: insist on a default notes folder before anything
+        // else. Deferred a tick so launch (window restoration, activation)
+        // settles before the modal chooser appears.
+        if !DefaultNotesFolder.isSet {
+            DispatchQueue.main.async {
+                DefaultNotesFolder.promptUntilChosen()
+            }
+        }
     }
 
     /// Honor the user's `launchBehavior` preference. Returning `true` tells

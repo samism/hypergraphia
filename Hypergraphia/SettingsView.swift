@@ -22,6 +22,7 @@ struct SettingsView: View {
     @AppStorage("scratchpadRetentionMode") private var scratchpadRetentionMode = "all"
     @AppStorage("scratchpadRetentionDays") private var scratchpadRetentionDays = 90
     @AppStorage("scratchpadRetentionCount") private var scratchpadRetentionCount = 100
+    @AppStorage(DefaultNotesFolder.pathKey) private var defaultNotesFolderPath = ""
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     @Environment(\.dismiss) private var dismiss
@@ -57,6 +58,25 @@ struct SettingsView: View {
 
     private var generalSettings: some View {
         Form {
+            LabeledContent("Notes Folder") {
+                HStack(spacing: 8) {
+                    Text(defaultNotesFolderPath.isEmpty
+                        ? "Not set"
+                        : (defaultNotesFolderPath as NSString).abbreviatingWithTildeInPath)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(.secondary)
+                        .help(defaultNotesFolderPath)
+                    Button("Change…") {
+                        if let url = DefaultNotesFolder.choose(
+                            message: "Choose your default notes folder. New windows open here."
+                        ) {
+                            DefaultNotesFolder.set(url)
+                        }
+                    }
+                }
+            }
+
             Picker("Appearance", selection: $themePreference) {
                 Text("System").tag("system")
                 Text("Light").tag("light")
