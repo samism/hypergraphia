@@ -160,6 +160,8 @@ public enum LiveEditSupport {
     ///   a source line. Optional `reopenInsert` chains another insert editor.
     /// - `{type: "editingState", active}` — a block editor opened or closed
     ///   (native chrome reacts, e.g. hiding the tab strip).
+    /// - `{type: "contentTyped"}` — first keystroke in an editor (native side
+    ///   auto-creates a file for untitled documents).
     ///
     /// Native side toggles the mode with `window.clearlySetLiveMode(bool)`.
     public static let scriptHTML = """
@@ -555,7 +557,15 @@ public enum LiveEditSupport {
         };
 
         function attachEvents(a) {
-            a.ta.addEventListener('input', function() { autogrow(a.ta); });
+            a.ta.addEventListener('input', function() {
+                autogrow(a.ta);
+                // First keystroke in any editor — native side auto-creates
+                // a file for untitled documents.
+                if (!a.typedNotified) {
+                    a.typedNotified = true;
+                    post({ type: 'contentTyped' });
+                }
+            });
             a.ta.addEventListener('keydown', function(e) {
                 // A key press means any mouse drag is over (a lost mouseup
                 // outside the window must not disable shrink forever).

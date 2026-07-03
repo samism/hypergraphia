@@ -40,6 +40,8 @@ struct PreviewView: NSViewRepresentable {
     var onLiveEditingChanged: ((Bool) -> Void)?
     /// The user scrolled the content area (wheel/trackpad event).
     var onUserScroll: (() -> Void)?
+    /// First keystroke in a live-mode block editor.
+    var onLiveTyping: (() -> Void)?
     /// Live mode: append a new block to the end of the document.
     var onLiveAppend: ((String) -> Void)?
     var contentWidthEm: CGFloat? = nil
@@ -54,8 +56,14 @@ struct PreviewView: NSViewRepresentable {
         return "calc(\(Int(contentWidthEm))em + 80px)"
     }
 
+    /// Everything that determines the rendered HTML except the backing file
+    /// URL (which only affects local-image resolution).
+    private var renderKey: String {
+        "\(markdown.count)|\(markdown.hashValue)__\(fontSize)__\(fontFamily)__\(colorScheme == .dark ? "dark" : "light")__\(contentWidthEm.map { "\($0)" } ?? "off")__\(hideFrontmatterInPreview)"
+    }
+
     private var contentKey: String {
-        "\(markdown.count)|\(markdown.hashValue)__\(fontSize)__\(fontFamily)__\(colorScheme == .dark ? "dark" : "light")__\(LocalImageSupport.fileURLKeyFragment(fileURL))__\(contentWidthEm.map { "\($0)" } ?? "off")__\(hideFrontmatterInPreview)"
+        "\(renderKey)__\(LocalImageSupport.fileURLKeyFragment(fileURL))"
     }
 
     func makeCoordinator() -> Coordinator {
@@ -88,6 +96,7 @@ struct PreviewView: NSViewRepresentable {
         context.coordinator.onLiveInsert = onLiveInsert
         context.coordinator.onLiveEditingChanged = onLiveEditingChanged
         context.coordinator.onUserScroll = onUserScroll
+        context.coordinator.onLiveTyping = onLiveTyping
         let coordinator = context.coordinator
         findState?.previewNavigateToNext = { [weak coordinator] in
             coordinator?.navigateToNextMatch()
@@ -192,6 +201,15 @@ struct PreviewView: NSViewRepresentable {
                    let json = String(data: data, encoding: .utf8) {
                     webView.evaluateJavaScript("window.clearlySetSource && window.clearlySetSource(\(json))")
                 }
+            } else if context.coordinator.isLiveEditing,
+                      context.coordinator.lastContentKey?.hasPrefix("\(renderKey)__") == true {
+                // Only the backing file URL changed — the auto-created file
+                // binding an untitled window on its first keystroke, or a
+                // save-as. Reloading would destroy the open block editor
+                // mid-typing, and the rendered HTML doesn't depend on the
+                // URL. Absorb the key; local images re-resolve on the next
+                // real reload (the editor's own commit).
+                context.coordinator.lastContentKey = contentKey
             } else {
                 loadHTML(in: webView, context: context)
             }
@@ -217,6 +235,9 @@ struct PreviewView: NSViewRepresentable {
         context.coordinator.lastContentKey = contentKey
         context.coordinator.renderedMarkdown = markdown
         context.coordinator.isLoadingContent = true
+        // The reload tears down any open editor; the page re-posts
+        // editingState when a pending reopen lands.
+        context.coordinator.isLiveEditing = false
         let rawBody = MarkdownRenderer.renderHTML(markdown, includeFrontmatter: !hideFrontmatterInPreview)
         let htmlBody = LocalImageSupport.resolveImageSources(in: rawBody, relativeTo: fileURL)
         let scrollJS = """
@@ -404,6 +425,7 @@ struct PreviewView: NSViewRepresentable {
         var onLiveInsert: ((Int, String) -> Void)?
         var onLiveEditingChanged: ((Bool) -> Void)?
         var onUserScroll: (() -> Void)?
+        var onLiveTyping: (() -> Void)?
         /// After the next reload, open a new-block insert editor below this line.
         var pendingLiveEditInsertAfter: Int?
         /// After the next reload, reopen the append editor (Enter chained a new block at the end).
@@ -421,6 +443,10 @@ struct PreviewView: NSViewRepresentable {
         /// travel into the next block) instead of the end.
         var pendingLiveEditCaretStart = false
         var skipNextReload = false
+        /// Whether a live-mode block editor is currently open in the page.
+        /// Kept in sync from the page's editingState messages; a fileURL-only
+        /// content-key change must not reload the page while this is true.
+        var isLiveEditing = false
         /// NSEvent local monitor closing the live-mode block editor when a
         /// click lands on app chrome outside the web view.
         var chromeClickMonitor: Any?
@@ -930,8 +956,13 @@ struct PreviewView: NSViewRepresentable {
                     DispatchQueue.main.async { [weak self] in
                         self?.onLiveInsert?(afterLine, text)
                     }
+                case "contentTyped":
+                    DispatchQueue.main.async { [weak self] in
+                        self?.onLiveTyping?()
+                    }
                 case "editingState":
                     let editing = body["active"] as? Bool ?? false
+                    isLiveEditing = editing
                     DispatchQueue.main.async { [weak self] in
                         self?.onLiveEditingChanged?(editing)
                     }
@@ -954,7 +985,7 @@ struct PreviewView: NSViewRepresentable {
                     } else if reopen == "next" {
                         pendingLiveEditLine = deletion.start
                         pendingLiveEditClear = false
-                        pendingLiveEditCaretStart = true
+                        pendingLiveEditCaretStart = false
                     }
                     DispatchQueue.main.async { [weak self] in
                         self?.onLiveEdit?(deletion.start, deletion.end, deletion.original, "")

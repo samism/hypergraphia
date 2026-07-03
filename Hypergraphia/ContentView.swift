@@ -38,6 +38,9 @@ struct ContentView: View {
     /// Scrolling the content also tucks the strip away; hovering the top
     /// band clears the latch so the strip stays once revealed.
     @State private var isScrollHidden: Bool = false
+    /// A save-as binding an untitled window to an auto-created file is in
+    /// flight; guards against double-creation while it completes.
+    @State private var autoCreatePending: Bool = false
 
     /// Stable per-window key for ScrollBridge / SelectionBridge. Re-keyed on
     /// document URL change so two windows on different files don't collide.
@@ -101,6 +104,20 @@ struct ContentView: View {
         .onChange(of: document.text) { _, newText in
             outlineState.parseHeadings(from: newText)
             statusBarState.updateText(newText)
+            // Untitled window gained content (edit-mode keystrokes land
+            // here): give it a real file in the open folder right away.
+            if !newText.isEmpty {
+                autoCreateFileIfNeeded()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
+            // Leaving an emptied file behind deletes it, Apple Notes-style.
+            guard let window = note.object as? NSWindow, window === tabModel.window else { return }
+            autoDeleteIfEmpty(unbindDocument: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            guard let window = note.object as? NSWindow, window === tabModel.window else { return }
+            autoDeleteIfEmpty(unbindDocument: false)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             // Sidebar visibility persists globally ("outlineVisible"), but
@@ -439,6 +456,9 @@ struct ContentView: View {
                         }
                     }
                 },
+                onLiveTyping: {
+                    autoCreateFileIfNeeded()
+                },
                 onLiveAppend: { text in
                     document.text = LiveEditSupport.appendingBlock(text, to: document.text)
                 },
@@ -515,9 +535,84 @@ struct ContentView: View {
         createMarkdownDocument(in: folderState, promptForFolder: true, tabbingInto: window)
     }
 
+    /// This window's underlying NSDocument.
+    private func windowDocument() -> NSDocument? {
+        guard let window = tabModel.window else { return nil }
+        return NSDocumentController.shared.documents.first { document in
+            document.windowControllers.contains { $0.window === window }
+        }
+    }
+
+    /// First character typed into an untitled window: create a markdown
+    /// file for it in the open folder (falling back to the default notes
+    /// folder) and bind the document to it — the file appears in the
+    /// sidebar immediately via the folder watcher.
+    private func autoCreateFileIfNeeded() {
+        // SwiftUI's fileURL lags the NSDocument in both directions — a render
+        // pass behind a save-as (which can mint a second file) and behind an
+        // auto-delete's unbind (which would block re-creating). The
+        // NSDocument is authoritative for whether this window is untitled.
+        guard !autoCreatePending,
+              let doc = windowDocument(),
+              doc.fileURL == nil else { return }
+        if folderState.folderURL == nil, let fallback = DefaultNotesFolder.url {
+            folderState.open(folder: fallback)
+        }
+        guard folderState.folderURL != nil else { return }
+        autoCreatePending = true
+        do {
+            let url = try folderState.createUntitledFile()
+            doc.save(to: url, ofType: doc.fileType ?? "net.daringfireball.markdown", for: .saveAsOperation) { error in
+                autoCreatePending = false
+                if error == nil {
+                    setDocumentTitle(doc, for: url)
+                    folderState.refresh()
+                }
+            }
+        } catch {
+            autoCreatePending = false
+        }
+    }
+
+    /// A file whose content was completely deleted disappears when the user
+    /// moves on (window resigns key or closes): trash it and drop it from
+    /// the sidebar. With `unbindDocument`, the window itself survives — the
+    /// document reverts to untitled and marked-clean, exactly the state it
+    /// had before the first keystroke auto-created the file, so typing again
+    /// simply creates a fresh one. (Closing the document here instead would
+    /// take down the last window, and the app with it.)
+    private func autoDeleteIfEmpty(unbindDocument: Bool) {
+        guard !autoCreatePending,
+              document.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let doc = windowDocument()
+        guard let url = doc?.fileURL ?? fileURL else { return }
+        try? FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        folderState.refresh()
+        if unbindDocument, let doc {
+            doc.fileURL = nil
+            doc.updateChangeCount(.changeCleared)
+            setDocumentTitle(doc, for: nil)
+            // The document turning untitled makes AppKit/SwiftUI rebuild the
+            // titlebar (unsaved-document proxy) a beat after the synchronous
+            // configure inside setDocumentTitle, resurfacing the native bar.
+            // Re-hide it once the dust settles — same delayed re-apply trick
+            // as TrafficLightMover.
+            let window = tabModel.window
+            for delay in [0.05, 0.3, 1.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    configureDocumentWindowChrome(window)
+                }
+            }
+        }
+    }
+
     private func orientSidebarToDocumentFolder() {
-        guard let folder = fileURL?.deletingLastPathComponent() else { return }
-        folderState.open(folder: folder)
+        if let folder = fileURL?.deletingLastPathComponent() {
+            folderState.open(folder: folder)
+        } else if let fallback = DefaultNotesFolder.url {
+            // Untitled windows orient to the default notes folder.
+            folderState.open(folder: fallback)
+        }
     }
 
     private func exportPDF() {
