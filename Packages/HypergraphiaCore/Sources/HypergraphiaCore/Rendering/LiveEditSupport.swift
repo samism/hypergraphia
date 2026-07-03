@@ -98,6 +98,28 @@ public enum LiveEditSupport {
         return (start, deleteEnd, original)
     }
 
+    /// Inserts `block` as its own markdown block after 1-based line
+    /// `afterLine` (0 inserts before the first line), adding the blank
+    /// separator lines cmark needs: always one above, and one below when the
+    /// following line isn't already blank. Returns nil when `afterLine` is
+    /// out of bounds.
+    public static func insertingBlock(_ block: String, after afterLine: Int, in text: String) -> String? {
+        let lines = text.components(separatedBy: "\n")
+        guard afterLine >= 0, afterLine <= lines.count else { return nil }
+        var insertion = block.components(separatedBy: "\n")
+        if afterLine > 0 {
+            insertion = [""] + insertion
+        }
+        if afterLine < lines.count,
+           !lines[afterLine].trimmingCharacters(in: .whitespaces).isEmpty {
+            insertion.append("")
+        }
+        return replacingLines(
+            in: text, start: afterLine + 1, end: afterLine,
+            with: insertion.joined(separator: "\n")
+        )
+    }
+
     /// Appends `block` to `text` as a new markdown block, inserting the blank
     /// line cmark needs to keep it separate from the previous block.
     public static func appendingBlock(_ block: String, to text: String) -> String {
@@ -258,7 +280,7 @@ public enum LiveEditSupport {
         // rendered form. Only safe while the editor content is untouched —
         // once the user types, absorption is final until commit or cancel.
         function maybeShrink(a) {
-            if (!a || a.committed || a.isAppend || mouseHeld) return;
+            if (!a || a.committed || a.isAppend || a.isInsert || mouseHeld) return;
             if (a.ta.value !== a.original) return;
             if (!a.below.length && !a.above.length) return;
             var ta = a.ta;
@@ -308,7 +330,7 @@ public enum LiveEditSupport {
         // so the browser's default caret movement continues into the newly
         // included text.
         function expandActive(a, up, toDocEdge) {
-            if (!docSource || a.isAppend || a.committed) return false;
+            if (!docSource || a.isAppend || a.isInsert || a.committed) return false;
             var lines = docSource.split('\\n');
             var newStart = a.start, newEnd = a.end;
             if (up) {
@@ -368,16 +390,25 @@ public enum LiveEditSupport {
             return true;
         }
 
+        // Tells the native side whether a block editor is open (it hides the
+        // tab strip while one is). Reopen flows deliberately skip the "off"
+        // notification so the strip doesn't flash between two editors.
+        function notifyEditing() {
+            post({ type: 'editingState', active: !!active });
+        }
+
         function closeActive(commit) {
             if (!active || active.committed) return;
             var a = active;
             var value = a.ta.value;
-            var changed = a.isAppend ? value.trim().length > 0 : value !== a.original;
+            var changed = (a.isAppend || a.isInsert) ? value.trim().length > 0 : value !== a.original;
             if (commit && changed) {
                 a.committed = true;
                 a.ta.readOnly = true;
                 if (a.isAppend) {
                     post({ type: 'appendBlock', text: value });
+                } else if (a.isInsert) {
+                    post({ type: 'insertBlock', afterLine: a.insertAfterLine, text: value });
                 } else if (value.trim() === '') {
                     // Committing an emptied block deletes it cleanly
                     // (separator blank lines get swallowed too).
@@ -389,6 +420,7 @@ public enum LiveEditSupport {
                 }
                 // The reload triggered by the source change replaces the DOM.
                 active = null;
+                notifyEditing();
                 return;
             }
             // Cancel / unchanged: restore the rendered block in place.
@@ -398,14 +430,84 @@ public enum LiveEditSupport {
             for (var j = a.above.length - 1; j >= 0; j--) reinsert(a.above[j].recs);
             a.below = [];
             a.above = [];
-            if (a.isAppend) {
+            if (a.isAppend || a.isInsert) {
                 a.wrap.remove();
             } else if (a.originalEl) {
                 a.wrap.replaceWith(a.originalEl);
             }
             if (a.header) a.header.style.display = '';
             active = null;
+            notifyEditing();
         }
+
+        // Enter on a heading or checklist block finishes it and opens a
+        // fresh empty block editor right below it, Apple Notes-style.
+        function finishAndInsertAfter(a) {
+            var value = a.ta.value;
+            if (value.trim() === '') return;
+            if (a.isAppend) {
+                a.committed = true;
+                a.ta.readOnly = true;
+                active = null;
+                post({ type: 'appendBlock', text: value, reopenAppend: true });
+                return;
+            }
+            if (a.isInsert) {
+                a.committed = true;
+                a.ta.readOnly = true;
+                active = null;
+                post({ type: 'insertBlock', afterLine: a.insertAfterLine, text: value,
+                       reopenInsert: true });
+                return;
+            }
+            if (value !== a.original) {
+                // Commit; after the reload the native side reopens an insert
+                // editor below the block's new extent.
+                a.committed = true;
+                a.ta.readOnly = true;
+                active = null;
+                post({ type: 'commitEdit', start: a.start, end: a.end, text: value, original: a.original,
+                       insertAfter: a.start + value.split('\\n').length - 1 });
+                return;
+            }
+            // Unchanged: restore the rendered block and insert in place —
+            // no reload needed.
+            var line = a.end;
+            closeActive(true);
+            beginInsertAfter(line);
+        }
+
+        // Opens an empty editor as a NEW block positioned after the block
+        // ending at `line` (its commit inserts rather than replaces).
+        function beginInsertAfter(line) {
+            if (!live) return;
+            closeActive(true);
+            var target = null;
+            blockRanges().forEach(function(r) {
+                if (r.end <= line && (!target || r.end > target.end)) target = r;
+            });
+            var built = buildEditor('', false);
+            if (target) {
+                var unit = unitFor(target.el);
+                unit.parentNode.insertBefore(built.wrap, unit.nextSibling);
+            } else {
+                document.body.appendChild(built.wrap);
+            }
+            active = { wrap: built.wrap, ta: built.ta, original: '', originalEl: null,
+                       header: null, start: 0, end: 0, isAppend: false,
+                       isInsert: true, insertAfterLine: target ? target.end : 0,
+                       committed: false, above: [], below: [],
+                       baseWrapClass: null, baseTaClass: null, baseHeight: null };
+            attachEvents(active);
+            autogrow(built.ta);
+            built.ta.focus();
+            built.wrap.scrollIntoView({ block: 'nearest' });
+            notifyEditing();
+        }
+
+        window.clearlyBeginInsertAfterLine = function(line) {
+            beginInsertAfter(line);
+        };
 
         function attachEvents(a) {
             a.ta.addEventListener('input', function() { autogrow(a.ta); });
@@ -457,6 +559,20 @@ public enum LiveEditSupport {
                     expandActive(a, true, true);
                     expandActive(a, false, true);
                 }
+                // Enter on a heading or checklist block finishes it and
+                // opens a fresh block below (only while the editor holds a
+                // single block — absorbed neighbors edit as plain text).
+                if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey
+                    && !e.isComposing && !a.above.length && !a.below.length && active === a) {
+                    var firstLine = ta.value.split('\\n', 1)[0];
+                    if (/^\\s{0,3}#{1,6}\\s/.test(firstLine)
+                        || /^\\s*(?:[-*+]|\\d+[.)])\\s+\\[[ xX]\\]/.test(firstLine)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        finishAndInsertAfter(a);
+                        return;
+                    }
+                }
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     e.stopPropagation();
@@ -474,6 +590,13 @@ public enum LiveEditSupport {
                         a.wrap.remove();
                         active = null;
                         editBlockAtOrAbove(Number.MAX_SAFE_INTEGER);
+                    } else if (a.isInsert) {
+                        // Backspace on an emptied insert editor abandons it
+                        // and lands the caret in the block above.
+                        a.committed = true;
+                        a.wrap.remove();
+                        active = null;
+                        editBlockAtOrAbove(a.insertAfterLine);
                     } else {
                         a.committed = true;
                         a.ta.readOnly = true;
@@ -559,6 +682,7 @@ public enum LiveEditSupport {
                 built.ta.value = '';
                 autogrow(built.ta);
             }
+            notifyEditing();
         };
 
         window.clearlyBeginAppend = function() {
@@ -573,6 +697,7 @@ public enum LiveEditSupport {
             autogrow(built.ta);
             built.ta.focus();
             built.wrap.scrollIntoView({ block: 'nearest' });
+            notifyEditing();
         };
 
         // Opens the editor for the deepest editable block that starts at or
@@ -605,6 +730,7 @@ public enum LiveEditSupport {
         // moves the caret into the neighboring block — the current block
         // leaves edit mode (committing as usual) and the neighbor enters it.
         function travel(a, up) {
+            if (a.isInsert) return false;
             var target = null;
             blockRanges().forEach(function(r) {
                 if (up) {

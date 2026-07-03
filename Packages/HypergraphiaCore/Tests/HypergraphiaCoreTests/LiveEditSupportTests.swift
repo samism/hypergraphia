@@ -242,6 +242,37 @@ struct LiveEditAppendTests {
     }
 }
 
+@Suite("LiveEditSupport block insertion")
+struct LiveEditInsertTests {
+    @Test func beforeExistingBlankSeparator() {
+        // "# H" (1), "" (2), "para" (3): insert after line 1 reuses the
+        // existing blank below as the lower separator.
+        #expect(LiveEditSupport.insertingBlock("new", after: 1, in: "# H\n\npara")
+                == "# H\n\nnew\n\npara")
+    }
+
+    @Test func betweenAdjacentLines() {
+        // Tight checklist: separators are needed on both sides.
+        #expect(LiveEditSupport.insertingBlock("new", after: 1, in: "- [ ] a\n- [ ] b")
+                == "- [ ] a\n\nnew\n\n- [ ] b")
+    }
+
+    @Test func atDocumentEnd() {
+        #expect(LiveEditSupport.insertingBlock("new", after: 1, in: "para")
+                == "para\n\nnew")
+    }
+
+    @Test func atDocumentStart() {
+        #expect(LiveEditSupport.insertingBlock("new", after: 0, in: "para")
+                == "new\n\npara")
+    }
+
+    @Test func outOfBounds() {
+        #expect(LiveEditSupport.insertingBlock("new", after: 5, in: "para") == nil)
+        #expect(LiveEditSupport.insertingBlock("new", after: -1, in: "para") == nil)
+    }
+}
+
 @Suite("LiveEditSupport script")
 struct LiveEditScriptTests {
     @Test func scriptExposesProtocol() {
