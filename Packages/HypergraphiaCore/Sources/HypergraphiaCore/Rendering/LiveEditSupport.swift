@@ -771,6 +771,11 @@ public enum LiveEditSupport {
         // the page without firing the textarea's own blur — commit then too.
         window.addEventListener('blur', function() { closeActive(true); });
 
+        // Chrome clicks don't always unfocus the page either (SwiftUI
+        // buttons don't steal first responder), so the native side watches
+        // for clicks outside the web view and closes the editor explicitly.
+        window.clearlyCloseActiveEditor = function() { closeActive(true); };
+
         // Text cursor over the empty space below the content, where a click
         // appends a new block.
         document.addEventListener('mousemove', function(e) {
@@ -788,12 +793,25 @@ public enum LiveEditSupport {
             var sel = window.getSelection();
             if (sel && !sel.isCollapsed) return;
 
-            // Interactive elements keep their normal behavior.
+            // Interactive elements keep their normal behavior. The click is
+            // still outside the active editor, so an untouched editor closes
+            // quietly; an edited one stays — committing here could shift
+            // source lines under the control's own message (e.g. a checkbox
+            // toggle posting a line number read from the pre-commit DOM).
             if (e.target.closest('input, button, summary, th, .code-copy-btn, .code-fold-btn, .table-copy-btn, .heading-anchor, .mermaid-zoom-icon, .live-img-zoom, .lightbox-overlay, .footnote-popover, .live-editor')) {
+                if (active && !active.committed
+                    && (active.isAppend ? active.ta.value.trim() === '' : active.ta.value === active.original)) {
+                    closeActive(false);
+                }
                 return;
             }
-            // Cmd-click follows links; plain click edits the block.
-            if (e.target.closest('a[href]') && (e.metaKey || e.ctrlKey)) return;
+            // Clicking a link follows it instead of editing its block (the
+            // bubble-phase link handler forwards external URLs to native;
+            // in-page anchors scroll by default), and leaves edit mode.
+            if (e.target.closest('a[href]')) {
+                closeActive(true);
+                return;
+            }
 
             var block = e.target.closest('[data-sourcepos]');
             // Checklist items edit individually; everything else edits at
@@ -818,7 +836,13 @@ public enum LiveEditSupport {
                 e.preventDefault();
                 e.stopPropagation();
                 post({ type: 'requestAppend' });
+                return;
             }
+            // Anything else — margins, gaps between blocks, dead space —
+            // takes the active block out of focus and edit mode, committing
+            // changes. (WebKit doesn't blur a textarea for clicks on
+            // non-focusable space, so this must be explicit.)
+            closeActive(true);
         }, true);
     })();
     </script>
