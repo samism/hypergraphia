@@ -1093,12 +1093,30 @@ public enum LiveEditSupport {
             if (block) {
                 // List items edit individually — the innermost item under
                 // the click; everything else edits at the outermost block.
-                var item = block.closest('li[data-sourcepos]');
-                if (item) {
-                    block = item;
+                // A whole list is never an edit target: clicks landing on
+                // the container itself (gaps between items, gutters) go to
+                // the item nearest the click.
+                if (block.tagName === 'UL' || block.tagName === 'OL') {
+                    var nearest = null, best = Infinity;
+                    block.querySelectorAll('li[data-sourcepos]').forEach(function(li) {
+                        var r = li.getBoundingClientRect();
+                        var d = e.clientY < r.top ? r.top - e.clientY
+                              : e.clientY > r.bottom ? e.clientY - r.bottom : 0;
+                        // Ties prefer the descendant: a parent item's box
+                        // spans its sublist's rows.
+                        if (d < best || (d === best && nearest && nearest.contains(li))) {
+                            best = d; nearest = li;
+                        }
+                    });
+                    block = nearest;
                 } else {
-                    while (block && block.parentElement && block.parentElement.closest('[data-sourcepos]')) {
-                        block = block.parentElement.closest('[data-sourcepos]');
+                    var item = block.closest('li[data-sourcepos]');
+                    if (item) {
+                        block = item;
+                    } else {
+                        while (block && block.parentElement && block.parentElement.closest('[data-sourcepos]')) {
+                            block = block.parentElement.closest('[data-sourcepos]');
+                        }
                     }
                 }
             }

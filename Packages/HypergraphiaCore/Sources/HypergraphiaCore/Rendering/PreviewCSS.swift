@@ -758,6 +758,13 @@ public enum PreviewCSS {
             padding-left: 1.45em;
         }
 
+        /* Nested lists are part of their parent item, not standalone blocks:
+           the block-level bottom margin would open a dead gap between the
+           last nested item and the next top-level one. */
+        li > ul, li > ol {
+            margin-bottom: 0;
+        }
+
         li {
             margin-bottom: 0.18em;
         }
