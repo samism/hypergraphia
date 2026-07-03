@@ -14,7 +14,6 @@ struct EditorView: NSViewRepresentable {
     var outlineState: OutlineState?
     var extraTopInset: CGFloat = 0
     var extraBottomInset: CGFloat = 0
-    var showLineNumbers: Bool = false
     var jumpToLineState: JumpToLineState?
     var statusBarState: StatusBarState?
     var needsTrafficLightClearance: Bool = false
@@ -104,12 +103,6 @@ struct EditorView: NSViewRepresentable {
         textView.delegate = context.coordinator
         scrollView.documentView = textView
 
-        // Line number gutter (plain NSView, not NSRulerView)
-        let gutter = LineNumberGutterView()
-        gutter.textView = textView
-        gutter.isHidden = !showLineNumbers
-        context.coordinator.gutterView = gutter
-
         context.coordinator.textView = textView
         ActiveEditor.shared.textView = textView
         context.coordinator.findState = findState
@@ -150,7 +143,7 @@ struct EditorView: NSViewRepresentable {
             object: nil
         )
 
-        // Frame changes (window resize causing rewrap) — trigger gutter redraw
+        // Frame changes (window resize) — recompute horizontal insets
         textView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(
             context.coordinator,
@@ -170,18 +163,10 @@ struct EditorView: NSViewRepresentable {
             }
         }
 
-        // Container: gutter | scrollView side by side
         let container = NSView()
-        container.addSubview(gutter)
         container.addSubview(scrollView)
-
-        // Layout via autoresizing
-        gutter.autoresizingMask = [.height]
         scrollView.autoresizingMask = [.width, .height]
-
-        let gutterWidth = showLineNumbers ? gutter.preferredWidth() : 0
-        gutter.frame = NSRect(x: 0, y: 0, width: gutterWidth, height: 0)
-        scrollView.frame = NSRect(x: gutterWidth, y: 0, width: 0, height: 0)
+        scrollView.frame = NSRect(x: 0, y: 0, width: 0, height: 0)
 
         DiagnosticLog.log("makeNSView: EditorView ready")
         return container
@@ -199,26 +184,12 @@ struct EditorView: NSViewRepresentable {
     func updateNSView(_ container: NSView, context: Context) {
         guard let scrollView = container.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView,
               let textView = scrollView.documentView as? HypergraphiaTextView else { return }
-        let gutter = container.subviews.first(where: { $0 is LineNumberGutterView }) as? LineNumberGutterView
 
         // Keep coordinator's parent fresh so the binding never goes stale
         context.coordinator.parent = self
 
         if mode == .edit {
             context.coordinator.bindEditorIntegrations(findState: findState, outlineState: outlineState)
-        }
-
-        // Toggle line number gutter visibility
-        if let gutter {
-            let gutterWidth = showLineNumbers ? gutter.preferredWidth() : 0
-            if gutter.isHidden == showLineNumbers {
-                gutter.isHidden = !showLineNumbers
-            }
-            let expectedGutterWidth = showLineNumbers ? gutterWidth : 0
-            if abs(gutter.frame.width - expectedGutterWidth) > 0.5 || abs(scrollView.frame.minX - expectedGutterWidth) > 0.5 {
-                gutter.frame = NSRect(x: 0, y: 0, width: expectedGutterWidth, height: container.bounds.height)
-                scrollView.frame = NSRect(x: expectedGutterWidth, y: 0, width: container.bounds.width - expectedGutterWidth, height: container.bounds.height)
-            }
         }
 
         // Update insets (content width, tab bar, traffic light clearance)
@@ -312,8 +283,6 @@ struct EditorView: NSViewRepresentable {
             context.coordinator.highlighter?.highlightAll(textView.textStorage!, caller: "appearance")
             context.coordinator.isHighlightingInProgress = false
 
-            // Refresh ruler when appearance/font changes
-            context.coordinator.gutterView?.appearanceDidChange()
         }
 
         // Only update text if it changed externally (not from user typing).
@@ -353,8 +322,6 @@ struct EditorView: NSViewRepresentable {
                     findState.resultsAreStale = true
                 }
             }
-            context.coordinator.gutterView?.textDidChange()
-            context.coordinator.gutterView?.selectionDidChange(selectedRange: textView.selectedRange())
             context.coordinator.isUpdating = false
         } else if context.coordinator.isUpdating && count <= 5 {
             DiagnosticLog.log("updateNSView #\(count): skipped text check (isUpdating)")
@@ -375,7 +342,6 @@ struct EditorView: NSViewRepresentable {
         var lastEditedRange: NSRange?
         var lastReplacementLength: Int = 0
         weak var textView: HypergraphiaTextView?
-        weak var gutterView: LineNumberGutterView?
         var lastMode: ViewMode?
         var lastPositionSyncID: String?
         var findState: FindState?
@@ -434,8 +400,6 @@ struct EditorView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            gutterView?.selectionDidChange(selectedRange: textView.selectedRange())
-
             // Store current selection for highlight-on-mode-switch
             let range = textView.selectedRange()
             if range.length > 0 {
@@ -481,8 +445,6 @@ struct EditorView: NSViewRepresentable {
         }
 
         @objc func textViewFrameDidChange(_ notification: Notification) {
-            gutterView?.scrollOrFrameDidChange()
-
             // Recalculate horizontal inset on window resize to keep text centered
             guard let textView, let scrollView = textView.enclosingScrollView else { return }
             let horizontalInset = EditorView.computeHorizontalInset(
@@ -670,9 +632,6 @@ struct EditorView: NSViewRepresentable {
                 }
             }
 
-            // Update line number ruler
-            gutterView?.textDidChange()
-
             // Update SwiftUI's document binding immediately so DocumentGroup
             // saves the latest keystroke even when Cmd+S follows typing.
             let token = UUID()
@@ -725,7 +684,6 @@ struct EditorView: NSViewRepresentable {
             let fraction = min(max(clipView.bounds.origin.y / maxScroll, 0), 1)
             ScrollBridge.setFraction(fraction, for: parent.positionSyncID)
 
-            gutterView?.scrollOrFrameDidChange()
         }
 
         private func invalidateVisibleRegion(of textView: NSTextView) {

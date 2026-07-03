@@ -507,7 +507,6 @@ struct HypergraphiaApp: App {
                 ViewModeCommands()
                 OutlineToggleCommand()
                 OutlineModeCommand()
-                LineNumbersToggleCommand()
                 BottomToolbarVisibilityCommand()
             }
             CommandGroup(replacing: .textFormatting) {
@@ -811,21 +810,6 @@ struct BottomToolbarVisibilityCommand: View {
             )
         }
         .keyboardShortcut("b", modifiers: [.command, .shift])
-    }
-}
-
-struct LineNumbersToggleCommand: View {
-    @AppStorage("showLineNumbers") private var showLineNumbers = false
-
-    var body: some View {
-        Button {
-            showLineNumbers.toggle()
-        } label: {
-            Label(
-                showLineNumbers ? "Hide Line Numbers" : "Show Line Numbers",
-                systemImage: "number"
-            )
-        }
     }
 }
 
