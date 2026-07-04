@@ -113,6 +113,23 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
             }
         })
 
+        // AppKit installs the native tab bar synchronously the moment a
+        // window joins a tab group; anything deferred (the strip model's
+        // refresh, a completion handler) lets it reach the screen for a
+        // frame — the visible chop when a tab is added. These fire inside
+        // the same transaction (queue: nil = synchronous on the posting
+        // thread), so the hidden-titlebar chrome — tab bar hidden, title
+        // hidden, lights placed — is enforced before anything draws.
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didBecomeMainNotification] {
+            observers.append(nc.addObserver(forName: name, object: nil, queue: nil) { note in
+                guard let window = note.object as? NSWindow,
+                      window.windowController?.document != nil else { return }
+                MainActor.assumeIsolated {
+                    configureDocumentWindowChrome(window)
+                }
+            })
+        }
+
         // First launch: insist on a default notes folder before anything
         // else. Deferred a tick so launch (window restoration, activation)
         // settles before the modal chooser appears.

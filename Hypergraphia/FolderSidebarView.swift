@@ -632,7 +632,15 @@ private func configureNativeTabAddButton(in window: NSWindow?) {
 /// window itself (red button) are untouched.
 @MainActor
 func replaceOnlyTabWithUntitled(in sourceWindow: NSWindow) {
-    guard let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) else { return }
+    // Native auto-tabbing puts the replacement straight into the group —
+    // no standalone-window flash while the adoption poll catches up.
+    NSWindow.allowsAutomaticWindowTabbing = true
+    sourceWindow.tabbingMode = .preferred
+    guard let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) else {
+        NSWindow.allowsAutomaticWindowTabbing = false
+        sourceWindow.tabbingMode = .automatic
+        return
+    }
     adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: 20)
 }
 
@@ -642,15 +650,21 @@ func replaceOnlyTabWithUntitled(in sourceWindow: NSWindow) {
 @MainActor
 private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWindow, attemptsLeft: Int) {
     guard let targetWindow = document.windowControllers.compactMap(\.window).first else {
-        guard attemptsLeft > 0 else { return }
+        guard attemptsLeft > 0 else {
+            NSWindow.allowsAutomaticWindowTabbing = false
+            sourceWindow.tabbingMode = .automatic
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: attemptsLeft - 1)
         }
         return
     }
-    sourceWindow.tabbingMode = .preferred
-    targetWindow.tabbingMode = .preferred
+    NSWindow.allowsAutomaticWindowTabbing = false
+    sourceWindow.tabbingMode = .automatic
     if sourceWindow.tabbedWindows?.contains(where: { $0 === targetWindow }) != true {
+        sourceWindow.tabbingMode = .preferred
+        targetWindow.tabbingMode = .preferred
         sourceWindow.addTabbedWindow(targetWindow, ordered: .above)
     }
     configureDocumentWindowChrome(sourceWindow)
@@ -660,6 +674,14 @@ private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWind
     // an emptied auto-created file still gets trashed by its own
     // willClose handling.
     sourceWindow.performClose(nil)
+    // Collapsing back to a single tab rebuilds the titlebar a beat later,
+    // resetting the traffic lights; re-apply the chrome once the dust
+    // settles, same delayed-tick trick as TrafficLightMover.
+    for delay in [0.05, 0.3, 1.0] {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak targetWindow] in
+            configureDocumentWindowChrome(targetWindow)
+        }
+    }
 }
 
 /// Opens a markdown file as a document window. When it came from a folder
@@ -671,7 +693,20 @@ func openMarkdownDocument(at url: URL, from folder: URL?, tabbingInto sourceWind
     if let folder {
         FolderHandoff.stage(folder: folder, forOpening: url)
     }
+    // Let AppKit create the new window directly inside the source window's
+    // tab group. Tabbing it in from the completion means the window first
+    // appears standalone at a cascade position and then jumps into the
+    // group — visible lag and chop on every new tab.
+    let tabbingIntoVisibleWindow = sourceWindow?.isVisible == true
+    if tabbingIntoVisibleWindow {
+        NSWindow.allowsAutomaticWindowTabbing = true
+        sourceWindow?.tabbingMode = .preferred
+    }
     NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { document, _, error in
+        if tabbingIntoVisibleWindow {
+            NSWindow.allowsAutomaticWindowTabbing = false
+            sourceWindow?.tabbingMode = .automatic
+        }
         if let error {
             NSAlert(error: error).runModal()
             return
@@ -682,9 +717,10 @@ func openMarkdownDocument(at url: URL, from folder: URL?, tabbingInto sourceWind
               let targetWindow = document?.windowControllers.compactMap(\.window).first,
               targetWindow !== sourceWindow else { return }
 
-        sourceWindow.tabbingMode = .preferred
-        targetWindow.tabbingMode = .preferred
+        // Fallback for windows the automatic path didn't group.
         if sourceWindow.tabbedWindows?.contains(where: { $0 === targetWindow }) != true {
+            sourceWindow.tabbingMode = .preferred
+            targetWindow.tabbingMode = .preferred
             sourceWindow.addTabbedWindow(targetWindow, ordered: .above)
         }
         configureDocumentWindowChrome(sourceWindow)
