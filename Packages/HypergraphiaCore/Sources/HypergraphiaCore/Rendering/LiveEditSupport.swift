@@ -490,8 +490,41 @@ public enum LiveEditSupport {
             notifyEditing();
         }
 
-        // Enter on a heading, blockquote, or list item finishes it and opens
-        // a fresh empty block editor right below it, Apple Notes-style.
+        // Enter in a text block ends the block at the caret: text after the
+        // caret moves into a new block below and the caret follows it to
+        // the start; with nothing after the caret, the block commits and a
+        // fresh empty one opens below, Apple Notes-style.
+        function splitActive(a) {
+            var ta = a.ta;
+            var head = ta.value.slice(0, ta.selectionStart);
+            var tail = ta.value.slice(ta.selectionEnd);
+            if (tail.trim() === '') {
+                finishAndInsertAfter(a);
+                return;
+            }
+            var value = head + '\\n\\n' + tail;
+            a.committed = true;
+            a.ta.readOnly = true;
+            active = null;
+            if (a.isAppend) {
+                post({ type: 'appendBlock', text: value, reopenAppend: true });
+                return;
+            }
+            if (a.isInsert) {
+                post({ type: 'insertBlock', afterLine: a.insertAfterLine, text: value,
+                       reopenInsert: true });
+                return;
+            }
+            // The head keeps the block's lines; the tail becomes the block
+            // after the separator — reopen there, caret at its start.
+            post({ type: 'commitEdit', start: a.start, end: a.end,
+                   text: value, original: a.original,
+                   reopenLine: a.start + head.split('\\n').length + 1,
+                   reopenCaretStart: true });
+        }
+
+        // Committing a finished block and opening a fresh empty editor right
+        // below it, Apple Notes-style.
         function finishAndInsertAfter(a) {
             var value = a.ta.value;
             if (value.trim() === '') return;
@@ -648,21 +681,19 @@ public enum LiveEditSupport {
                     expandActive(a, true, true);
                     expandActive(a, false, true);
                 }
-                // Enter on a heading, blockquote, or list item (checkbox,
-                // bullet, or numbered) finishes it and opens a fresh block
-                // below (only while the editor holds a single block —
-                // absorbed neighbors edit as plain text).
+                // Enter never inserts a newline into a text block: it ends
+                // the block at the caret and continues in a new one below —
+                // every line is its own block. Code, tables, math, and
+                // frontmatter (mono editors) keep literal newlines, as do
+                // editors that absorbed neighbors (multi-block selections);
+                // Shift+Enter stays an in-block line break everywhere.
                 if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey
-                    && !e.isComposing && !a.above.length && !a.below.length && active === a) {
-                    var firstLine = ta.value.split('\\n', 1)[0];
-                    if (/^\\s{0,3}#{1,6}\\s/.test(firstLine)
-                        || /^\\s{0,3}>/.test(firstLine)
-                        || /^\\s*(?:[-*+]|\\d+[.)])\\s/.test(firstLine)) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        finishAndInsertAfter(a);
-                        return;
-                    }
+                    && !e.isComposing && !a.above.length && !a.below.length && active === a
+                    && !ta.classList.contains('live-mono')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    splitActive(a);
+                    return;
                 }
                 if (e.key === 'Escape') {
                     e.preventDefault();
