@@ -551,6 +551,10 @@ struct EditorView: NSViewRepresentable {
 
             state.$query
                 .removeDuplicates()
+                // Find-as-you-type runs a full-document scan plus a repaint
+                // per query change; the debounce coalesces a burst of
+                // keystrokes into one search without a perceptible delay.
+                .debounce(for: .milliseconds(150), scheduler: DispatchQueue.main)
                 .sink { [weak self] newQuery in
                     guard let self,
                           let findState = self.findState,
@@ -827,8 +831,9 @@ struct EditorView: NSViewRepresentable {
                 return
             }
             guard !matchRanges.isEmpty else { return }
+            let previous = currentMatchIdx
             currentMatchIdx = (currentMatchIdx + 1) % matchRanges.count
-            applyFindHighlights()
+            moveCurrentHighlight(from: previous)
             textView?.scrollRangeToVisible(matchRanges[currentMatchIdx])
             DispatchQueue.main.async { [weak self] in
                 guard let self,
@@ -844,8 +849,9 @@ struct EditorView: NSViewRepresentable {
                 return
             }
             guard !matchRanges.isEmpty else { return }
+            let previous = currentMatchIdx
             currentMatchIdx = (currentMatchIdx - 1 + matchRanges.count) % matchRanges.count
-            applyFindHighlights()
+            moveCurrentHighlight(from: previous)
             textView?.scrollRangeToVisible(matchRanges[currentMatchIdx])
             DispatchQueue.main.async { [weak self] in
                 guard let self,
@@ -859,15 +865,63 @@ struct EditorView: NSViewRepresentable {
         // not on text storage. This is Apple's recommended pattern for
         // transient UI highlighting and means find painting never overwrites
         // `==highlight==` markdown backgrounds (which DO live on storage).
+
+        /// Painting every match of a short query in a large document (tens of
+        /// thousands of temporary attributes) takes visible time. Paint a
+        /// window of matches centered on the current one instead; navigation
+        /// repaints only when it leaves the window. The match COUNT shown in
+        /// the find bar always reflects every match.
+        private static let maxPaintedMatches = 2000
+        private var paintedMatchWindow: Range<Int> = 0..<0
+
+        private static func paintWindow(around index: Int, count: Int) -> Range<Int> {
+            guard count > maxPaintedMatches else { return 0..<count }
+            let half = maxPaintedMatches / 2
+            let start = max(0, min(index - half, count - maxPaintedMatches))
+            return start..<(start + maxPaintedMatches)
+        }
+
         private func applyFindHighlights() {
             guard let textView, let layoutManager = textView.layoutManager else { return }
             let storage = textView.textStorage!
             let fullRange = NSRange(location: 0, length: storage.length)
             layoutManager.removeTemporaryAttribute(.backgroundColor, forCharacterRange: fullRange)
-            for (i, range) in matchRanges.enumerated() {
+            let window = Self.paintWindow(around: currentMatchIdx, count: matchRanges.count)
+            paintedMatchWindow = window
+            for i in window {
+                let range = matchRanges[i]
                 guard range.upperBound <= storage.length else { continue }
                 let color = (i == currentMatchIdx) ? Theme.findCurrentHighlightColor : Theme.findHighlightColor
                 layoutManager.addTemporaryAttribute(.backgroundColor, value: color, forCharacterRange: range)
+            }
+        }
+
+        /// Navigation fast path: recolor just the two affected matches
+        /// instead of clearing and repainting the whole set. Falls back to a
+        /// full repaint when the new current match is outside the painted
+        /// window (recentering it there).
+        private func moveCurrentHighlight(from previous: Int) {
+            guard let textView, let layoutManager = textView.layoutManager,
+                  previous != currentMatchIdx,
+                  paintedMatchWindow.contains(currentMatchIdx),
+                  matchRanges.indices.contains(currentMatchIdx) else {
+                applyFindHighlights()
+                return
+            }
+            let storage = textView.textStorage!
+            if paintedMatchWindow.contains(previous),
+               matchRanges.indices.contains(previous),
+               matchRanges[previous].upperBound <= storage.length {
+                layoutManager.addTemporaryAttribute(
+                    .backgroundColor, value: Theme.findHighlightColor,
+                    forCharacterRange: matchRanges[previous]
+                )
+            }
+            if matchRanges[currentMatchIdx].upperBound <= storage.length {
+                layoutManager.addTemporaryAttribute(
+                    .backgroundColor, value: Theme.findCurrentHighlightColor,
+                    forCharacterRange: matchRanges[currentMatchIdx]
+                )
             }
         }
 
@@ -879,6 +933,7 @@ struct EditorView: NSViewRepresentable {
             matchRanges = []
             lastMatches = []
             currentMatchIdx = 0
+            paintedMatchWindow = 0..<0
         }
 
         // MARK: - Replace

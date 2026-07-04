@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
+import HypergraphiaCore
 
 extension UTType {
     /// Resolve the markdown UTType from the system rather than using `importedAs`,
@@ -24,7 +25,9 @@ struct MarkdownDocument: FileDocument {
         guard let data = configuration.file.regularFileContents else {
             throw CocoaError(.fileReadCorruptFile)
         }
-        self.text = String(decoding: data, as: UTF8.self)
+        // Smart decode: UTF-16 exports and legacy CP-1252/MacRoman notes open
+        // correctly instead of as mojibake. Saves always write UTF-8.
+        self.text = TextFileDecoder.decode(data)
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {

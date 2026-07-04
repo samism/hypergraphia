@@ -137,6 +137,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
             guard let window = note.object as? NSWindow, window === tabModel.window else { return }
             autoDeleteIfEmpty(unbindDocument: false)
+            ScrollBridge.clear(for: positionSyncID)
+            SelectionBridge.clear(for: positionSyncID)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             // Sidebar visibility persists globally ("outlineVisible"), but
@@ -152,6 +154,10 @@ struct ContentView: View {
         .onChange(of: fileURL) { _, _ in
             // Re-key bridges when the document is saved/renamed so a new
             // file's scroll position doesn't inherit the old fraction.
+            // Reclaim the old key's entries — auto-rename means windows
+            // re-key constantly over a long session.
+            ScrollBridge.clear(for: positionSyncID)
+            SelectionBridge.clear(for: positionSyncID)
             positionSyncID = UUID().uuidString
             orientSidebarToDocumentFolder()
             refreshFileNameSync()

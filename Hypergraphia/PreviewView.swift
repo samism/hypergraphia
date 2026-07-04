@@ -246,14 +246,69 @@ struct PreviewView: NSViewRepresentable {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "liveEdit")
     }
 
+    /// Serial queue for HTML construction. Rendering a large document (cmark
+    /// plus ~10 post-processing passes plus script assembly) takes tens of
+    /// milliseconds; running it on the main thread stalled typing and mode
+    /// switches. Everything the builder touches is pure string/Bundle work —
+    /// only `loadHTMLString` itself must (and does) run on main.
+    private nonisolated static let renderQueue = DispatchQueue(
+        label: "com.sabotage.clearly.preview-render", qos: .userInitiated
+    )
+
     private func loadHTML(in webView: WKWebView, context: Context) {
-        context.coordinator.lastContentKey = contentKey
-        context.coordinator.renderedMarkdown = markdown
-        context.coordinator.isLoadingContent = true
-        // The reload tears down any open editor; the page re-posts
-        // editingState when a pending reopen lands.
-        context.coordinator.isLiveEditing = false
-        let rawBody = MarkdownRenderer.renderHTML(markdown, includeFrontmatter: !hideFrontmatterInPreview)
+        let coordinator = context.coordinator
+        // Synchronous bookkeeping: the key stops updateNSView re-triggering,
+        // isLoadingContent defers scroll-to-line requests to didFinish, and
+        // the live editor is considered gone as soon as a reload is committed
+        // (the page re-posts editingState when a pending reopen lands).
+        coordinator.lastContentKey = contentKey
+        coordinator.isLoadingContent = true
+        coordinator.isLiveEditing = false
+        coordinator.renderGeneration &+= 1
+        let generation = coordinator.renderGeneration
+
+        let markdown = self.markdown
+        let fileURL = self.fileURL
+        let includeFrontmatter = !hideFrontmatterInPreview
+        let fontSize = self.fontSize
+        let fontFamily = self.fontFamily
+        let bodyMaxWidth = self.bodyMaxWidthCSS
+        let extraTopInset = self.extraTopInset
+
+        Self.renderQueue.async { [weak webView, weak coordinator] in
+            let html = Self.buildHTML(
+                markdown: markdown,
+                fileURL: fileURL,
+                includeFrontmatter: includeFrontmatter,
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+                bodyMaxWidth: bodyMaxWidth,
+                extraTopInset: extraTopInset
+            )
+            DispatchQueue.main.async {
+                guard let webView, let coordinator,
+                      coordinator.renderGeneration == generation else { return }
+                // renderedMarkdown updates together with the load so the
+                // page's sourcepos-based edits validate against the text
+                // that actually produced the DOM.
+                coordinator.renderedMarkdown = markdown
+                webView.loadHTMLString(html, baseURL: fileURL?.deletingLastPathComponent() ?? MermaidSupport.resourceBaseURL)
+            }
+        }
+    }
+
+    /// Pure string assembly — deliberately `nonisolated` so it can run on
+    /// `renderQueue`. Must not touch AppKit, Theme, or view state.
+    private nonisolated static func buildHTML(
+        markdown: String,
+        fileURL: URL?,
+        includeFrontmatter: Bool,
+        fontSize: CGFloat,
+        fontFamily: String,
+        bodyMaxWidth: String,
+        extraTopInset: CGFloat
+    ) -> String {
+        let rawBody = MarkdownRenderer.renderHTML(markdown, includeFrontmatter: includeFrontmatter)
         let htmlBody = LocalImageSupport.resolveImageSources(in: rawBody, relativeTo: fileURL)
         let scrollJS = """
         // Track scroll fraction for position sync between editor and preview.
@@ -285,7 +340,7 @@ struct PreviewView: NSViewRepresentable {
         <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>\(PreviewCSS.css(fontSize: fontSize, fontFamily: fontFamily, bodyMaxWidth: bodyMaxWidthCSS))
+        <style>\(PreviewCSS.css(fontSize: fontSize, fontFamily: fontFamily, bodyMaxWidth: bodyMaxWidth))
         mark.clearly-find { background-color: rgba(255, 204, 0, 0.35); border-radius: 2px; padding: 0 1px; }
         mark.clearly-mode-highlight { background: rgba(255, 214, 10, 0.45); border-radius: 3px; padding: 0 1px; transition: background 1.5s ease; }
         mark.clearly-mode-highlight.fade { background: transparent; }
@@ -422,7 +477,7 @@ struct PreviewView: NSViewRepresentable {
         \(LiveEditSupport.scriptHTML)
         </html>
         """
-        webView.loadHTMLString(html, baseURL: fileURL?.deletingLastPathComponent() ?? MermaidSupport.resourceBaseURL)
+        return html
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -457,6 +512,10 @@ struct PreviewView: NSViewRepresentable {
         /// travel into the next block) instead of the end.
         var pendingLiveEditCaretStart = false
         var skipNextReload = false
+        /// Monotonic token for background HTML builds. Bumped when a reload
+        /// is committed; a build that finishes after a newer one was
+        /// requested is dropped instead of loading stale content.
+        var renderGeneration = 0
         /// Whether a live-mode block editor is currently open in the page.
         /// Kept in sync from the page's editingState messages; a fileURL-only
         /// content-key change must not reload the page while this is true.
@@ -481,6 +540,10 @@ struct PreviewView: NSViewRepresentable {
 
             state.$query
                 .removeDuplicates()
+                // The page-side find walks and rewraps every text node per
+                // query; coalesce keystroke bursts the same way the editor
+                // side does.
+                .debounce(for: .milliseconds(150), scheduler: DispatchQueue.main)
                 .sink { [weak self] query in
                     guard let self,
                           let findState = self.findState,
