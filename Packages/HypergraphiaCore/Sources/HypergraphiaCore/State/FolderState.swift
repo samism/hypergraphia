@@ -101,6 +101,28 @@ public final class FolderState: ObservableObject {
         return folder.appendingPathComponent(name)
     }
 
+    /// Filename derived from a document's first line, for auto-naming
+    /// untitled notes: the line's text up to the first period, with markdown
+    /// block prefixes (heading #'s, blockquote >, list markers, checkboxes)
+    /// and filesystem-hostile characters stripped. Nil when nothing usable
+    /// remains.
+    public static func derivedFileName(fromDocumentText text: String) -> String? {
+        var line = String(text.prefix(while: { $0 != "\n" }))
+        line = line.replacingOccurrences(
+            of: #"^\s{0,3}(?:#{1,6}\s+|>\s*|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)"#,
+            with: "", options: .regularExpression
+        )
+        if let dot = line.firstIndex(of: ".") { line = String(line[..<dot]) }
+        line = line.replacingOccurrences(of: "/", with: "-")
+        line = line.replacingOccurrences(of: ":", with: "-")
+        line = line.trimmingCharacters(in: .whitespaces)
+        guard !line.isEmpty else { return nil }
+        if line.count > 64 {
+            line = String(line.prefix(64)).trimmingCharacters(in: .whitespaces)
+        }
+        return line
+    }
+
     /// Rename target for a sidebar file. The UI asks for the extensionless
     /// display name; if the user types a markdown extension anyway, preserve
     /// the original file's extension instead of doubling it.

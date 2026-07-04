@@ -135,4 +135,25 @@ struct FolderStateTests {
         #expect(state.folderURL == nil)
         #expect(state.files.isEmpty)
     }
+
+    @Test func derivedFileNameTakesFirstLineUpToPeriod() {
+        #expect(FolderState.derivedFileName(fromDocumentText: "Meeting notes for Tuesday. Agenda below.\nBody") == "Meeting notes for Tuesday")
+        #expect(FolderState.derivedFileName(fromDocumentText: "No period here\nsecond line") == "No period here")
+    }
+
+    @Test func derivedFileNameStripsMarkdownPrefixes() {
+        #expect(FolderState.derivedFileName(fromDocumentText: "# Big Title\nbody") == "Big Title")
+        #expect(FolderState.derivedFileName(fromDocumentText: "### Deep heading. tail") == "Deep heading")
+        #expect(FolderState.derivedFileName(fromDocumentText: "> A quote line") == "A quote line")
+        #expect(FolderState.derivedFileName(fromDocumentText: "- [x] Ship the release") == "Ship the release")
+        #expect(FolderState.derivedFileName(fromDocumentText: "1. Draft the idea") == "Draft the idea")
+    }
+
+    @Test func derivedFileNameSanitizesAndBounds() {
+        #expect(FolderState.derivedFileName(fromDocumentText: "a/b: c\n") == "a-b- c")
+        #expect(FolderState.derivedFileName(fromDocumentText: "   \nbody") == nil)
+        #expect(FolderState.derivedFileName(fromDocumentText: ". starts with period") == nil)
+        let long = String(repeating: "x", count: 200)
+        #expect(FolderState.derivedFileName(fromDocumentText: long)?.count == 64)
+    }
 }
