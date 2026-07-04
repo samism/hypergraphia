@@ -13,8 +13,27 @@ class PreviewViewController: NSViewController, QLPreviewingController {
 
     func preparePreviewOfFile(at url: URL, completionHandler handler: @escaping (Error?) -> Void) {
         do {
-            let markdownText = try String(contentsOf: url, encoding: .utf8)
-            let htmlBody = MarkdownRenderer.renderHTML(markdownText)
+            let data = try Data(contentsOf: url, options: .mappedIfSafe)
+
+            // Spacebar previews have a latency budget: render huge documents
+            // truncated (cut at a line boundary) with a notice instead of
+            // making quicklookd chew through megabytes of markdown.
+            let (renderData, truncated) = TextFileDecoder.truncatedAtLineBoundary(
+                data, limit: Limits.maxQuickLookRenderSize
+            )
+
+            // Never-fail decode — UTF-16 exports and legacy-encoded notes
+            // preview correctly instead of erroring out of QuickLook (the
+            // old strict-UTF-8 read threw for anything else).
+            let markdownText = TextFileDecoder.decode(renderData)
+            var htmlBody = MarkdownRenderer.renderHTML(markdownText)
+            if truncated {
+                htmlBody += """
+                <div style="margin-top:2em;padding:12px 16px;border-radius:8px;\
+                background:rgba(128,128,128,0.12);font-style:italic;">\
+                Preview truncated — open in Hypergraphia to view the full document.</div>
+                """
+            }
 
             let html = """
             <!DOCTYPE html>
@@ -43,4 +62,5 @@ class PreviewViewController: NSViewController, QLPreviewingController {
             handler(error)
         }
     }
+
 }

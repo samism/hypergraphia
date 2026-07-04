@@ -74,6 +74,7 @@ struct ScratchpadEditorView: NSViewRepresentable {
         let highlighter = MarkdownSyntaxHighlighter()
         context.coordinator.highlighter = highlighter
         textView.string = text
+        context.coordinator.lastCommittedText = text
         textView.delegate = context.coordinator
 
         let coordinator = context.coordinator
@@ -119,15 +120,34 @@ struct ScratchpadEditorView: NSViewRepresentable {
             context.coordinator.isHighlighting = false
         }
 
-        if !context.coordinator.isUpdating && textView.string != text {
-            context.coordinator.isUpdating = true
-            let selectedRanges = textView.selectedRanges
-            textView.string = text
-            textView.selectedRanges = selectedRanges
-            context.coordinator.isHighlighting = true
-            context.coordinator.highlighter?.highlightAll(textView.textStorage!, caller: "scratchpad-externalText")
-            context.coordinator.isHighlighting = false
-            context.coordinator.isUpdating = false
+        // Same guards as the main editor: while a binding commit is in
+        // flight the text view is authoritative (without this, a SwiftUI
+        // pass triggered between textDidChange and the binding settling —
+        // e.g. by the store's @Observable mutation in onTextChange — would
+        // overwrite the view with the stale binding and eat the keystroke).
+        // hasMarkedText protects in-flight IME composition, and the
+        // length-first comparison keeps the no-change path O(1).
+        if !context.coordinator.isUpdating
+            && context.coordinator.pendingBindingUpdates == 0
+            && !textView.hasMarkedText() {
+            let storageLength = textView.textStorage?.length ?? 0
+            let textMismatch: Bool
+            if text == context.coordinator.lastCommittedText && text.utf16.count == storageLength {
+                textMismatch = false
+            } else {
+                textMismatch = text.utf16.count != storageLength || textView.string != text
+            }
+            if textMismatch {
+                context.coordinator.isUpdating = true
+                let selectedRanges = textView.selectedRanges
+                textView.string = text
+                textView.selectedRanges = selectedRanges
+                context.coordinator.lastCommittedText = text
+                context.coordinator.isHighlighting = true
+                context.coordinator.highlighter?.highlightAll(textView.textStorage!, caller: "scratchpad-externalText")
+                context.coordinator.isHighlighting = false
+                context.coordinator.isUpdating = false
+            }
         }
     }
 
@@ -144,6 +164,12 @@ struct ScratchpadEditorView: NSViewRepresentable {
         var onSave: (() -> Void)?
         var lastEditedRange: NSRange?
         var lastReplacementLength: Int = 0
+        /// See EditorView.Coordinator: blocks updateNSView from replacing
+        /// the text view while the binding write from textDidChange hasn't
+        /// settled through SwiftUI yet.
+        var pendingBindingUpdates = 0
+        var pendingBindingUpdateToken: UUID?
+        var lastCommittedText: String = ""
 
         init(_ parent: ScratchpadEditorView) {
             self.parent = parent
@@ -159,6 +185,9 @@ struct ScratchpadEditorView: NSViewRepresentable {
             guard let textView = notification.object as? NSTextView else { return }
             if isUpdating { return }
 
+            // Text view is authoritative until the binding write settles.
+            pendingBindingUpdates = 1
+
             isHighlighting = true
             if let editedRange = lastEditedRange {
                 highlighter?.highlightAround(textView.textStorage!, editedRange: editedRange, replacementLength: lastReplacementLength, caller: "scratchpad-textDidChange")
@@ -168,13 +197,21 @@ struct ScratchpadEditorView: NSViewRepresentable {
             }
             isHighlighting = false
 
+            // Commit synchronously (matching the main editor) so nothing can
+            // observe a window where the view and binding disagree, then
+            // release the guard on the next runloop tick once SwiftUI has
+            // caught up.
             let newText = textView.string
+            lastCommittedText = newText
             parent.onTextChange?(newText)
+            parent.text = newText
+
+            let token = UUID()
+            pendingBindingUpdateToken = token
             DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                self.isUpdating = true
-                self.parent.text = newText
-                self.isUpdating = false
+                guard let self, self.pendingBindingUpdateToken == token else { return }
+                self.pendingBindingUpdateToken = nil
+                self.pendingBindingUpdates = 0
             }
         }
     }

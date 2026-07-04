@@ -25,6 +25,13 @@ struct MarkdownDocument: FileDocument {
         guard let data = configuration.file.regularFileContents else {
             throw CocoaError(.fileReadCorruptFile)
         }
+        // Enforce the documented open cap. The syntax highlighter, stats,
+        // and preview all assume oversized files never reach the editor —
+        // without this guard a stray multi-hundred-MB "markdown" file goes
+        // straight into NSTextView layout and effectively hangs the app.
+        guard Int64(data.count) <= Limits.maxOpenableFileSize else {
+            throw CocoaError(.fileReadTooLarge)
+        }
         // Smart decode: UTF-16 exports and legacy CP-1252/MacRoman notes open
         // correctly instead of as mojibake. Saves always write UTF-8.
         self.text = TextFileDecoder.decode(data)

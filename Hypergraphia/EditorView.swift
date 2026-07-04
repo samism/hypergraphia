@@ -280,10 +280,7 @@ struct EditorView: NSViewRepresentable {
             ]
 
             // Suppress scroll handler during highlighting to prevent layout manager deadlock
-            context.coordinator.isHighlightingInProgress = true
-            context.coordinator.highlighter?.highlightAll(textView.textStorage!, caller: "appearance")
-            context.coordinator.isHighlightingInProgress = false
-
+            context.coordinator.runFullHighlight(on: textView, caller: "appearance")
         }
 
         // Only update text if it changed externally (not from user typing).
@@ -323,9 +320,7 @@ struct EditorView: NSViewRepresentable {
                 textView.string = text
                 textView.selectedRanges = selectedRanges
                 context.coordinator.lastCommittedText = text
-                context.coordinator.isHighlightingInProgress = true
-                context.coordinator.highlighter?.highlightAll(textView.textStorage!, caller: "externalText")
-                context.coordinator.isHighlightingInProgress = false
+                context.coordinator.runFullHighlight(on: textView, caller: "externalText")
                 // External text replacement (file load/revert) — old match ranges are stale.
                 context.coordinator.clearFindHighlights()
                 if let findState = context.coordinator.findState, findState.isVisible, findState.activeMode == .edit {
@@ -544,6 +539,37 @@ struct EditorView: NSViewRepresentable {
         func cancelPendingBindingUpdate() {
             pendingBindingUpdates = 0
             pendingBindingUpdateToken = nil
+        }
+
+        /// Documents above this size get their full highlight deferred to
+        /// the next runloop tick so the window (or the new content) appears
+        /// immediately with plain styling instead of blocking behind the
+        /// whole-document regex sweep.
+        private static let deferredHighlightThreshold = 200_000
+        private var deferredInitialHighlight: DispatchWorkItem?
+
+        /// Run a full highlight pass — synchronously for ordinary documents,
+        /// deferred one tick for large ones. Repeat calls coalesce.
+        func runFullHighlight(on textView: NSTextView, caller: String) {
+            guard let storage = textView.textStorage else { return }
+            deferredInitialHighlight?.cancel()
+            deferredInitialHighlight = nil
+            guard storage.length > Self.deferredHighlightThreshold else {
+                isHighlightingInProgress = true
+                highlighter?.highlightAll(storage, caller: caller)
+                isHighlightingInProgress = false
+                return
+            }
+            let work = DispatchWorkItem { [weak self, weak textView] in
+                guard let self, let textView, let storage = textView.textStorage else { return }
+                self.deferredInitialHighlight = nil
+                self.isHighlightingInProgress = true
+                self.highlighter?.highlightAll(storage, caller: "\(caller)-deferred")
+                self.isHighlightingInProgress = false
+                self.invalidateVisibleRegion(of: textView)
+            }
+            deferredInitialHighlight = work
+            DispatchQueue.main.async(execute: work)
         }
 
         func observeFindState(_ state: FindState) {
