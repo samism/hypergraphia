@@ -13,6 +13,24 @@ public struct HeadingItem: Identifiable, Hashable {
         self.range = range
         self.previewAnchor = previewAnchor
     }
+
+    /// Content-based equality (the `id` UUID is deliberately excluded): two
+    /// parses of unchanged text must produce equal items so `OutlineState`
+    /// can skip publishing — otherwise the sidebar re-diffs every row on
+    /// every debounced parse while the user types.
+    public static func == (lhs: HeadingItem, rhs: HeadingItem) -> Bool {
+        lhs.level == rhs.level
+            && lhs.title == rhs.title
+            && lhs.range == rhs.range
+            && lhs.previewAnchor == rhs.previewAnchor
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(level)
+        hasher.combine(title)
+        hasher.combine(range.location)
+        hasher.combine(range.length)
+    }
 }
 
 public final class OutlineState: ObservableObject {
@@ -160,7 +178,12 @@ public final class OutlineState: ObservableObject {
         }
 
         DispatchQueue.main.async {
-            self.headings = items
+            // Skip the publish when nothing changed — typing in body text
+            // re-parses every 0.4s, and an unconditional assignment would
+            // re-render the whole outline sidebar each time.
+            if self.headings != items {
+                self.headings = items
+            }
         }
     }
 

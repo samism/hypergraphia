@@ -24,6 +24,13 @@ public enum ScrollBridge {
     public static func setFraction(_ value: Double, for id: String) {
         fractions[id] = value
     }
+
+    /// Drop a retired key. Windows re-key on every save/rename, so without
+    /// cleanup the map accumulates one stranded entry per rename for the
+    /// life of the process.
+    public static func clear(for id: String) {
+        fractions[id] = nil
+    }
 }
 
 /// Stores current text selection per window so the destination view can highlight it on mode switch.
@@ -40,5 +47,11 @@ public enum SelectionBridge {
         } else {
             selections[id] = nil
         }
+    }
+
+    /// Drop a retired key (see `ScrollBridge.clear`). Selections can hold
+    /// multi-kilobyte strings, so stranded entries are worth reclaiming.
+    public static func clear(for id: String) {
+        selections[id] = nil
     }
 }

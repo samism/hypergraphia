@@ -48,7 +48,9 @@ public final class ExternalFileWatcher: NSObject, NSFilePresenter, @unchecked Se
             defer { if scoped { resolved.stopAccessingSecurityScopedResource() } }
             #endif
             if let data = try? Data(contentsOf: resolved) {
-                diskText = String(decoding: data, as: UTF8.self)
+                // Same smart decode as document open, so echo-detection
+                // compares like against like for non-UTF-8 files.
+                diskText = TextFileDecoder.decode(data)
             }
         }
         guard let text = diskText else { return }
