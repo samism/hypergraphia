@@ -609,6 +609,43 @@ private func configureNativeTabAddButton(in window: NSWindow?) {
     control.isHidden = false
 }
 
+/// Closing a document window's only tab must not take the window (or the
+/// app) with it: a fresh untitled tab joins the same tab group first, then
+/// the old tab closes — the window shell never moves, only the content
+/// resets to the click-to-start-writing state. Quitting and closing the
+/// window itself (red button) are untouched.
+@MainActor
+func replaceOnlyTabWithUntitled(in sourceWindow: NSWindow) {
+    guard let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) else { return }
+    adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: 20)
+}
+
+/// SwiftUI attaches a `DocumentGroup` document's window controllers a beat
+/// after `openUntitledDocumentAndDisplay` returns; poll briefly until the
+/// window exists, then tab it in and close the tab it replaces.
+@MainActor
+private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWindow, attemptsLeft: Int) {
+    guard let targetWindow = document.windowControllers.compactMap(\.window).first else {
+        guard attemptsLeft > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: attemptsLeft - 1)
+        }
+        return
+    }
+    sourceWindow.tabbingMode = .preferred
+    targetWindow.tabbingMode = .preferred
+    if sourceWindow.tabbedWindows?.contains(where: { $0 === targetWindow }) != true {
+        sourceWindow.addTabbedWindow(targetWindow, ordered: .above)
+    }
+    configureDocumentWindowChrome(sourceWindow)
+    configureDocumentWindowChrome(targetWindow)
+    targetWindow.makeKeyAndOrderFront(nil)
+    // The replacement is in the group, so this close only takes the tab —
+    // an emptied auto-created file still gets trashed by its own
+    // willClose handling.
+    sourceWindow.performClose(nil)
+}
+
 /// Opens a markdown file as a document window. When it came from a folder
 /// sidebar, stages that folder so the opened document's `ContentView` adopts
 /// it (folder mode, same folder) on appear.

@@ -32,6 +32,10 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
     /// `updateActivationPolicy` once a real `NSDocument` exists.
     private var isDocumentPanelPresented = false
 
+    /// Routes ⌘W away from "close window" when a document window's only tab
+    /// is up: the tab is replaced with a fresh untitled one instead.
+    private var closeTabKeyMonitor: Any?
+
     /// SwiftUI side stores this with `@AppStorage("keepRunningMenubarOnly")`,
     /// default `true`. Use `object(forKey:)` to distinguish unset (→ true)
     /// from an explicit `false` the user wrote.
@@ -88,6 +92,21 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         })
+
+        // ⌘W with a document window's only tab up replaces the tab with a
+        // fresh untitled one — the window shell stays put, matching the tab
+        // strip's ✕. Multi-tab windows, the red close button, and quitting
+        // all keep their native behavior.
+        closeTabKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                  event.charactersIgnoringModifiers?.lowercased() == "w",
+                  let window = NSApp.keyWindow,
+                  window.windowController?.document != nil,
+                  (window.tabGroup?.windows.count ?? 1) <= 1
+            else { return event }
+            replaceOnlyTabWithUntitled(in: window)
+            return nil
+        }
         observers.append(nc.addObserver(forName: NSWindow.didBecomeMainNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateActivationPolicy()
@@ -247,6 +266,10 @@ final class HypergraphiaAppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.removeObserver(observer)
         }
         observers.removeAll()
+        if let closeTabKeyMonitor {
+            NSEvent.removeMonitor(closeTabKeyMonitor)
+            self.closeTabKeyMonitor = nil
+        }
     }
 
     /// Drives the Dock icon. Called from window observers and from the

@@ -95,7 +95,13 @@ final class EditorTabModel: ObservableObject {
     }
 
     func close(_ tab: Tab) {
-        tab.window.performClose(nil)
+        // The last tab doesn't take the window with it: a fresh untitled
+        // tab replaces it in the same frame.
+        if tabs.count == 1, tab.window === window {
+            replaceOnlyTabWithUntitled(in: tab.window)
+        } else {
+            tab.window.performClose(nil)
+        }
     }
 }
 
