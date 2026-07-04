@@ -574,20 +574,36 @@ final class TrafficLightMover {
         let key = ObjectIdentifier(window)
         for type in buttonTypes {
             guard let button = window.standardWindowButton(type) else { continue }
-            let base: CGPoint
+            let flipped = button.superview?.isFlipped ?? false
+            func target(from base: CGPoint) -> NSPoint {
+                NSPoint(
+                    x: base.x + Self.offset.x,
+                    y: flipped ? base.y + Self.offset.y : base.y - Self.offset.y
+                )
+            }
+            // The natural origin depends on the titlebar's current style
+            // state — a window configured before the hidden-titlebar chrome
+            // lands (a fresh untitled tab, a tab-group rebuild) caches a
+            // base AppKit later abandons, and offsetting from it shoves the
+            // lights out of the titlebar. Self-heal: if the button sits
+            // anywhere that is neither our target nor the cached base,
+            // AppKit re-laid it — adopt that as the new natural base.
+            let current = button.frame.origin
+            var base: CGPoint
             if let cached = baseOrigins[key]?[type] {
-                base = cached
+                if current != target(from: cached) && current != cached {
+                    base = current
+                    baseOrigins[key]?[type] = current
+                } else {
+                    base = cached
+                }
             } else {
-                base = button.frame.origin
+                base = current
                 baseOrigins[key, default: [:]][type] = base
             }
-            let flipped = button.superview?.isFlipped ?? false
-            let target = NSPoint(
-                x: base.x + Self.offset.x,
-                y: flipped ? base.y + Self.offset.y : base.y - Self.offset.y
-            )
-            if button.frame.origin != target {
-                button.setFrameOrigin(target)
+            let destination = target(from: base)
+            if button.frame.origin != destination {
+                button.setFrameOrigin(destination)
             }
         }
     }
