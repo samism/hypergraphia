@@ -123,7 +123,7 @@ private struct FolderListView: View {
                     .foregroundStyle(.tertiary)
                 Button("Open Folder…") {
                     if let url = FolderPanel.choose() {
-                        folderState.open(folder: url)
+                        openFolderClosingTabs(url, in: folderState)
                     }
                 }
                 .controlSize(.small)
@@ -138,7 +138,7 @@ private struct FolderListView: View {
     private func folderRow(_ folderURL: URL) -> some View {
         Button {
             if let url = FolderPanel.choose() {
-                folderState.open(folder: url)
+                openFolderClosingTabs(url, in: folderState)
             }
         } label: {
             HStack(spacing: 6) {
@@ -644,11 +644,44 @@ func replaceOnlyTabWithUntitled(in sourceWindow: NSWindow) {
     adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: 20)
 }
 
+/// Opening a different folder from the sidebar starts it clean: the window
+/// resets to a single fresh untitled tab oriented to the chosen folder,
+/// and every existing tab closes. Re-picking the current folder, or
+/// choosing from a lone pristine untitled editor, just adopts the folder
+/// in place — nothing worth resetting.
+@MainActor
+func openFolderClosingTabs(_ folder: URL, in folderState: FolderState) {
+    let sourceWindow = NSApp.keyWindow
+    let group = sourceWindow?.tabGroup?.windows ?? sourceWindow.map { [$0] } ?? []
+    let sourceDocument = sourceWindow?.windowController?.document as? NSDocument
+    let lonePristineUntitled = group.count <= 1
+        && sourceDocument != nil
+        && sourceDocument?.fileURL == nil
+    if sourceWindow == nil
+        || lonePristineUntitled
+        || folder.standardizedFileURL == folderState.folderURL?.standardizedFileURL {
+        folderState.open(folder: folder)
+        return
+    }
+    FolderHandoff.stageForUntitled(folder: folder)
+    NSWindow.allowsAutomaticWindowTabbing = true
+    sourceWindow?.tabbingMode = .preferred
+    guard let sourceWindow,
+          let document = try? NSDocumentController.shared.openUntitledDocumentAndDisplay(true) else {
+        NSWindow.allowsAutomaticWindowTabbing = false
+        sourceWindow?.tabbingMode = .automatic
+        folderState.open(folder: folder)
+        return
+    }
+    adoptReplacementTab(document: document, into: sourceWindow, closing: group, attemptsLeft: 20)
+}
+
 /// SwiftUI attaches a `DocumentGroup` document's window controllers a beat
 /// after `openUntitledDocumentAndDisplay` returns; poll briefly until the
-/// window exists, then tab it in and close the tab it replaces.
+/// window exists, then tab it in and close the tab(s) it replaces —
+/// `closing` defaults to just the source window.
 @MainActor
-private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWindow, attemptsLeft: Int) {
+private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWindow, closing windowsToClose: [NSWindow]? = nil, attemptsLeft: Int) {
     guard let targetWindow = document.windowControllers.compactMap(\.window).first else {
         guard attemptsLeft > 0 else {
             NSWindow.allowsAutomaticWindowTabbing = false
@@ -656,7 +689,7 @@ private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWind
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            adoptReplacementTab(document: document, into: sourceWindow, attemptsLeft: attemptsLeft - 1)
+            adoptReplacementTab(document: document, into: sourceWindow, closing: windowsToClose, attemptsLeft: attemptsLeft - 1)
         }
         return
     }
@@ -670,10 +703,12 @@ private func adoptReplacementTab(document: NSDocument, into sourceWindow: NSWind
     configureDocumentWindowChrome(sourceWindow)
     configureDocumentWindowChrome(targetWindow)
     targetWindow.makeKeyAndOrderFront(nil)
-    // The replacement is in the group, so this close only takes the tab —
-    // an emptied auto-created file still gets trashed by its own
-    // willClose handling.
-    sourceWindow.performClose(nil)
+    // The replacement is in the group, so these closes only take the tabs —
+    // emptied auto-created files still get trashed by their own willClose
+    // handling.
+    for window in windowsToClose ?? [sourceWindow] where window !== targetWindow {
+        window.performClose(nil)
+    }
     // Collapsing back to a single tab rebuilds the titlebar a beat later,
     // resetting the traffic lights; re-apply the chrome once the dust
     // settles, same delayed-tick trick as TrafficLightMover.
@@ -746,6 +781,10 @@ func openMarkdownDocument(at url: URL, from folder: URL?, tabbingInto sourceWind
 @MainActor
 enum FolderHandoff {
     private static var pending: [URL: (folder: URL, staged: Date)] = [:]
+    /// Folder for the next untitled window (no file URL to key on): the
+    /// change-folder flow spawns a fresh untitled tab that must open
+    /// oriented to the chosen folder.
+    private static var pendingUntitled: (folder: URL, staged: Date)?
     private static let maxAge: TimeInterval = 10
 
     static func stage(folder: URL, forOpening fileURL: URL) {
@@ -753,10 +792,19 @@ enum FolderHandoff {
         pending[fileURL.standardizedFileURL] = (folder, Date())
     }
 
+    static func stageForUntitled(folder: URL) {
+        pendingUntitled = (folder, Date())
+    }
+
     static func claim(for fileURL: URL?) -> URL? {
-        guard let key = fileURL?.standardizedFileURL,
-              let entry = pending.removeValue(forKey: key),
-              Date().timeIntervalSince(entry.staged) < maxAge else { return nil }
+        if let key = fileURL?.standardizedFileURL {
+            guard let entry = pending.removeValue(forKey: key),
+                  Date().timeIntervalSince(entry.staged) < maxAge else { return nil }
+            return entry.folder
+        }
+        guard let entry = pendingUntitled else { return nil }
+        pendingUntitled = nil
+        guard Date().timeIntervalSince(entry.staged) < maxAge else { return nil }
         return entry.folder
     }
 }
