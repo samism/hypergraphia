@@ -399,28 +399,31 @@ struct ContentView: View {
             .frame(height: 96)
 
             if shouldShowBottomToolbar {
-                LinearGradient(
-                    stops: [
-                        .init(color: Theme.backgroundColorSwiftUI.opacity(0), location: 0),
-                        .init(color: Theme.backgroundColorSwiftUI.opacity(0.7), location: 0.55),
-                        .init(color: Theme.backgroundColorSwiftUI, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 96)
-                .allowsHitTesting(false)
-                .transition(.opacity)
+                // The glass toolbar reveals the content beneath itself; a
+                // fade-to-background scrim would give it nothing but a flat
+                // fill to refract, so it's legacy-only.
+                if #unavailable(macOS 26.0) {
+                    LinearGradient(
+                        stops: [
+                            .init(color: Theme.backgroundColorSwiftUI.opacity(0), location: 0),
+                            .init(color: Theme.backgroundColorSwiftUI.opacity(0.7), location: 0.55),
+                            .init(color: Theme.backgroundColorSwiftUI, location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 96)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                }
 
-                BottomToolbar(
-                    viewMode: $viewMode,
-                    statusBarState: statusBarState,
-                    outlineState: outlineState,
-                    fileURL: fileURL,
-                    documentText: { document.text }
-                )
+                BottomToolbar(statusBarState: statusBarState)
                 .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+                // Floats clear of the window's bottom edge: the page's
+                // horizontal scroller lives in the bottom ~16pt, and a
+                // toolbar sitting on top of it makes the scroller
+                // unreachable.
+                .padding(.bottom, 24)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
@@ -479,7 +482,7 @@ struct ContentView: View {
                 findState: findState,
                 outlineState: outlineState,
                 extraTopInset: contentTopInset,
-                extraBottomInset: BottomToolbar.pillHeight + 24,
+                extraBottomInset: BottomToolbar.pillHeight + 40,
                 jumpToLineState: jumpToLineState,
                 statusBarState: statusBarState,
                 contentWidthEm: contentWidthEm
