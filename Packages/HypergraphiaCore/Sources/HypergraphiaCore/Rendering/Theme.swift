@@ -16,32 +16,80 @@ public enum Theme {
 #endif
     }
 
+    /// Resolved editor fonts and derived line metrics for one font size.
+    /// Font construction (and especially `withItalicTrait`, which goes through
+    /// NSFontManager on Mac) is expensive enough that the syntax highlighter
+    /// must never pay for it per match — everything below is built once per
+    /// size and served from this cache.
+    private struct EditorFontSet {
+        let size: CGFloat
+        let body: PlatformFont
+        let bold: PlatformFont
+        let italic: PlatformFont
+        let boldItalic: PlatformFont
+        let heading: PlatformFont
+        let code: PlatformFont
+        let lineHeight: CGFloat
+        let baselineOffset: CGFloat
+    }
+
+    private static let fontCacheLock = NSLock()
+    nonisolated(unsafe) private static var fontCache: EditorFontSet?
+
+    private static func editorFontSet() -> EditorFontSet {
+        let size = editorFontSize
+        fontCacheLock.lock()
+        defer { fontCacheLock.unlock() }
+        if let cached = fontCache, cached.size == size { return cached }
+
+        let body = PlatformFont.clearlySansSystemFont(ofSize: size, weight: .regular)
+        let bold = PlatformFont.clearlySansSystemFont(ofSize: size, weight: .bold)
+        let code = PlatformFont.clearlyMonospacedSystemFont(ofSize: size, weight: .regular)
+        let bodyHeight = body.ascender - body.descender + body.leading
+        let codeHeight = code.ascender - code.descender + code.leading
+        let lineHeight = ceil(max(bodyHeight, codeHeight)) + lineSpacing
+        let naturalHeight = ceil(bodyHeight)
+        let set = EditorFontSet(
+            size: size,
+            body: body,
+            bold: bold,
+            italic: body.withItalicTrait(),
+            boldItalic: bold.withItalicTrait(),
+            heading: PlatformFont.clearlySansSystemFont(ofSize: size + 4, weight: .bold),
+            code: code,
+            lineHeight: lineHeight,
+            baselineOffset: (lineHeight - naturalHeight) / 2
+        )
+        fontCache = set
+        return set
+    }
+
     public static var editorFont: PlatformFont {
-        editorBodyFont
+        editorFontSet().body
     }
 
     public static var editorBodyFont: PlatformFont {
-        PlatformFont.clearlySansSystemFont(ofSize: editorFontSize, weight: .regular)
+        editorFontSet().body
     }
 
     public static var editorBoldFont: PlatformFont {
-        PlatformFont.clearlySansSystemFont(ofSize: editorFontSize, weight: .bold)
+        editorFontSet().bold
     }
 
     public static var editorItalicFont: PlatformFont {
-        editorBodyFont.withItalicTrait()
+        editorFontSet().italic
     }
 
     public static var editorBoldItalicFont: PlatformFont {
-        editorBoldFont.withItalicTrait()
+        editorFontSet().boldItalic
     }
 
     public static var editorHeadingFont: PlatformFont {
-        PlatformFont.clearlySansSystemFont(ofSize: editorFontSize + 4, weight: .bold)
+        editorFontSet().heading
     }
 
     public static var editorCodeFont: PlatformFont {
-        PlatformFont.clearlyMonospacedSystemFont(ofSize: editorFontSize, weight: .regular)
+        editorFontSet().code
     }
 
     public static var editorFontSwiftUI: Font { sansFont(size: editorFontSize) }
@@ -64,16 +112,12 @@ public enum Theme {
 
     /// Desired line height = font natural height + lineSpacing
     public static var editorLineHeight: CGFloat {
-        let bodyHeight = editorBodyFont.ascender - editorBodyFont.descender + editorBodyFont.leading
-        let codeHeight = editorCodeFont.ascender - editorCodeFont.descender + editorCodeFont.leading
-        return ceil(max(bodyHeight, codeHeight)) + lineSpacing
+        editorFontSet().lineHeight
     }
 
     /// Baseline offset to vertically center text within the line height
     public static var editorBaselineOffset: CGFloat {
-        let font = editorFont
-        let naturalHeight = ceil(font.ascender - font.descender + font.leading)
-        return (editorLineHeight - naturalHeight) / 2
+        editorFontSet().baselineOffset
     }
 
     // MARK: - Dynamic Colors (auto-resolve for light/dark via Bundle.module asset catalog)

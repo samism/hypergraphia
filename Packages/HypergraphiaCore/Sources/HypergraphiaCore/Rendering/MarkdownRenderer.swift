@@ -6,6 +6,55 @@ public enum MarkdownRenderer {
     private static let escapedMathDollarToken = "\u{E101}"
     private static let escapedMathPaddingToken = "\u{E102}"
 
+    // MARK: - Compiled patterns
+
+    // The renderer runs on every preview reload (and in QuickLook / PDF
+    // export), so post-processing regexes are compiled once here rather than
+    // per call.
+    private static let sourceposRegex = try? NSRegularExpression(pattern: #"data-sourcepos="(\d+):(\d+)-(\d+):(\d+)""#)
+    private static let tagRegex = try? NSRegularExpression(pattern: #"<[^>]+>"#)
+    private static let mathBlockUnwrapRegex = try? NSRegularExpression(
+        pattern: #"<p([^>]*)>\s*<div class="math-block">([\s\S]*?)</div>\s*</p>"#
+    )
+    private static let mathParaRegex = try? NSRegularExpression(pattern: #"<p[^>]*>\s*\$\$[\s\S]*?\$\$\s*</p>"#)
+    private static let displayMathRegex = try? NSRegularExpression(
+        pattern: MathSupport.displayMathPattern, options: .dotMatchesLineSeparators
+    )
+    private static let inlineMathRegex = try? NSRegularExpression(pattern: MathSupport.inlineMathPattern)
+    private static let codeRegionRegex = try? NSRegularExpression(
+        pattern: #"<(pre|code)\b[^>]*>[\s\S]*?<\/\1>"#, options: [.caseInsensitive]
+    )
+    private static let protectedTokenRegex = try? NSRegularExpression(pattern: #"__CLEARLY_PROTECTED_CODE_(\d+)__"#)
+    private static let captionRegex = try? NSRegularExpression(
+        pattern: #"<p[^>]*>Table:\s*(.*?)</p>\s*(<table[^>]*>)"#, options: [.dotMatchesLineSeparators]
+    )
+    private static let codeFilenameRegex = try? NSRegularExpression(
+        pattern: #"^(`{3,})(\w+)[ \t]+title="([^"]+)"[ \t]*$"#, options: .anchorsMatchLines
+    )
+    private static let preSourceposRegex = try? NSRegularExpression(pattern: #"<pre data-sourcepos="(\d+):\d+-\d+:\d+""#)
+    private static let wikilinkRawRegex = try? NSRegularExpression(pattern: wikilinkRawPattern)
+    private static let wikilinkRenderRegex = try? NSRegularExpression(pattern: WikilinkSupport.renderPattern)
+    private static let highlightMarkRegex = try? NSRegularExpression(pattern: #"==([^=\n]+?)=="#)
+    private static let superscriptRegex = try? NSRegularExpression(
+        pattern: #"(?<!\^)\^(?!\^)([^\^\s\n]+?)(?<!\^)\^(?!\^)"#
+    )
+    private static let subscriptRegex = try? NSRegularExpression(
+        pattern: #"(?<!~)~(?!~)([^~\s\n]+?)(?<!~)~(?!~)"#
+    )
+    private static let emojiShortcodeRegex = try? NSRegularExpression(pattern: #":([a-z0-9_+-]+):"#)
+    private static let calloutRegex = try? NSRegularExpression(
+        pattern: #"<blockquote([^>]*)>\s*<p([^>]*)>\[!([\w]+)\](-?)[ \t]*([^\n]*?)(?:<br\s*/?>\n?|\n|(?=</p>))([\s\S]*?)</p>([\s\S]*?)</blockquote>"#,
+        options: []
+    )
+    private static let tocHeadingRegex = try? NSRegularExpression(
+        pattern: #"<(h[1-6])([^>]*)>(.*?)</\1>"#, options: .dotMatchesLineSeparators
+    )
+    private static let tocParagraphRegex = try? NSRegularExpression(
+        pattern: #"<p[^>]*>\[TOC\]</p>"#, options: .caseInsensitive
+    )
+    private static let headingIDAttrRegex = try? NSRegularExpression(pattern: #"id=(["'])(.*?)\1"#)
+    private static let headingIDReplaceRegex = try? NSRegularExpression(pattern: #"(\s*)id=(["']).*?\2"#)
+
     public static func renderHTML(_ markdown: String, includeFrontmatter: Bool = true) -> String {
         guard !markdown.isEmpty else { return "" }
 
@@ -78,7 +127,7 @@ public enum MarkdownRenderer {
     }
 
     private static func adjustSourcePositions(in html: String, offset: Int) -> String {
-        guard let regex = try? NSRegularExpression(pattern: #"data-sourcepos="(\d+):(\d+)-(\d+):(\d+)""#) else {
+        guard let regex = sourceposRegex else {
             return html
         }
         let nsHTML = html as NSString
@@ -143,9 +192,13 @@ public enum MarkdownRenderer {
     /// Convert $...$ and $$...$$ in rendered HTML to KaTeX-compatible spans/divs.
     /// Only transforms text nodes outside protected <code>/<pre> regions.
     private static func processMath(_ html: String) -> String {
+        // No dollar sign anywhere → nothing this stage could transform.
+        // (Escaped `\$` delimiters are private-use tokens at this point, and
+        // deliberately must NOT become math.)
+        guard html.contains("$") else { return html }
         let (rawProtectedHTML, protectedSegments) = protectCodeRegions(in: html)
         let protectedHTML = normalizeMathLineBreaks(in: rawProtectedHTML)
-        guard let tagRegex = try? NSRegularExpression(pattern: #"<[^>]+>"#) else {
+        guard let tagRegex else {
             return restoreProtectedSegments(in: processMathText(protectedHTML), segments: protectedSegments)
         }
 
@@ -175,9 +228,7 @@ public enum MarkdownRenderer {
         // which browsers "repair" by splitting the invalid p>div nesting —
         // orphaning the block from the paragraph's data-sourcepos. Lift the
         // div out and move the paragraph's attributes (sourcepos) onto it.
-        if let unwrapRegex = try? NSRegularExpression(
-            pattern: #"<p([^>]*)>\s*<div class="math-block">([\s\S]*?)</div>\s*</p>"#
-        ) {
+        if let unwrapRegex = mathBlockUnwrapRegex {
             result = unwrapRegex.stringByReplacingMatches(
                 in: result,
                 range: NSRange(result.startIndex..., in: result),
@@ -193,9 +244,7 @@ public enum MarkdownRenderer {
     /// extraction. Normalize them back to newlines within math paragraphs.
     private static func normalizeMathLineBreaks(in html: String) -> String {
         guard html.contains("$$") else { return html }
-        guard let mathParaRegex = try? NSRegularExpression(
-            pattern: #"<p[^>]*>\s*\$\$[\s\S]*?\$\$\s*</p>"#
-        ) else { return html }
+        guard let mathParaRegex else { return html }
         let ns = html as NSString
         var result = ""
         var lastEnd = 0
@@ -214,15 +263,16 @@ public enum MarkdownRenderer {
     }
 
     private static func processMathText(_ text: String) -> String {
+        guard text.contains("$") else { return text }
         var result = text
-        if let blockRegex = try? NSRegularExpression(pattern: MathSupport.displayMathPattern, options: .dotMatchesLineSeparators) {
+        if let blockRegex = displayMathRegex {
             result = blockRegex.stringByReplacingMatches(
                 in: result,
                 range: NSRange(result.startIndex..., in: result),
                 withTemplate: #"<div class="math-block">$1</div>"#
             )
         }
-        if let inlineRegex = try? NSRegularExpression(pattern: MathSupport.inlineMathPattern) {
+        if let inlineRegex = inlineMathRegex {
             result = inlineRegex.stringByReplacingMatches(
                 in: result,
                 range: NSRange(result.startIndex..., in: result),
@@ -232,47 +282,66 @@ public enum MarkdownRenderer {
         return result
     }
 
+    /// Swap `<pre>`/`<code>` regions for placeholder tokens so inline
+    /// post-processors can't transform code content. Single forward pass —
+    /// per-match string splicing made this quadratic in the number of code
+    /// regions before.
     private static func protectCodeRegions(in html: String) -> (html: String, segments: [String]) {
-        guard let codeRegex = try? NSRegularExpression(
-            pattern: #"<(pre|code)\b[^>]*>[\s\S]*?<\/\1>"#,
-            options: [.caseInsensitive]
-        ) else {
+        guard let codeRegex = codeRegionRegex,
+              html.range(of: "<pre", options: .caseInsensitive) != nil
+                || html.range(of: "<code", options: .caseInsensitive) != nil else {
             return (html, [])
         }
 
-        var protectedHTML = html
+        let ns = html as NSString
+        var result = ""
+        result.reserveCapacity(html.utf8.count)
         var segments: [String] = []
-        let matches = codeRegex.matches(in: html, range: NSRange(html.startIndex..., in: html)).reversed()
+        var cursor = 0
 
-        for match in matches {
-            guard let range = Range(match.range, in: protectedHTML) else { continue }
-            let segment = String(protectedHTML[range])
-            let token = "__CLEARLY_PROTECTED_CODE_\(segments.count)__"
-            segments.append(segment)
-            protectedHTML.replaceSubrange(range, with: token)
+        codeRegex.enumerateMatches(in: html, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match else { return }
+            result += ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
+            segments.append(ns.substring(with: match.range))
+            result += "__CLEARLY_PROTECTED_CODE_\(segments.count - 1)__"
+            cursor = match.range.location + match.range.length
         }
 
-        return (protectedHTML, segments)
+        guard !segments.isEmpty else { return (html, []) }
+        result += ns.substring(from: cursor)
+        return (result, segments)
     }
 
+    /// Inverse of `protectCodeRegions` — one pass over the placeholder
+    /// tokens instead of a full-string `replacingOccurrences` per segment.
     private static func restoreProtectedSegments(in html: String, segments: [String]) -> String {
-        var restored = html
-        for (index, segment) in segments.enumerated() {
-            restored = restored.replacingOccurrences(
-                of: "__CLEARLY_PROTECTED_CODE_\(index)__",
-                with: segment
-            )
+        guard !segments.isEmpty, let tokenRegex = protectedTokenRegex else { return html }
+        let ns = html as NSString
+        var result = ""
+        result.reserveCapacity(html.utf8.count)
+        var cursor = 0
+
+        tokenRegex.enumerateMatches(in: html, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match else { return }
+            result += ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
+            if let index = Int(ns.substring(with: match.range(at: 1))), index < segments.count {
+                result += segments[index]
+            } else {
+                // Token-shaped text that isn't ours (or out of range) passes
+                // through untouched, matching the old per-index replacement.
+                result += ns.substring(with: match.range)
+            }
+            cursor = match.range.location + match.range.length
         }
-        return restored
+
+        result += ns.substring(from: cursor)
+        return result
     }
 
     /// Convert "Table: caption text" paragraphs immediately before a <table> into <caption> elements.
     private static func processCaptions(_ html: String) -> String {
         guard html.contains("<table") else { return html }
-        guard let regex = try? NSRegularExpression(
-            pattern: #"<p[^>]*>Table:\s*(.*?)</p>\s*(<table[^>]*>)"#,
-            options: [.dotMatchesLineSeparators]
-        ) else { return html }
+        guard let regex = captionRegex else { return html }
         let nsHTML = html as NSString
         return regex.stringByReplacingMatches(
             in: html,
@@ -286,32 +355,40 @@ public enum MarkdownRenderer {
     /// Pre-processing: extract `title="filename"` from fenced code info strings before cmark processes them.
     /// Returns the cleaned markdown and a mapping of source line numbers to filenames.
     private static func extractCodeFilenames(_ markdown: String) -> (String, [Int: String]) {
-        guard let regex = try? NSRegularExpression(
-            pattern: #"^(`{3,})(\w+)\s+title="([^"]+)"\s*$"#,
-            options: .anchorsMatchLines
-        ) else { return (markdown, [:]) }
+        // Fast path: the vast majority of documents never use title=.
+        // (This previously split the whole document into lines and ran the
+        // regex once per line, even when nothing could match.)
+        guard markdown.contains("title="), let regex = codeFilenameRegex else { return (markdown, [:]) }
 
         var filenames: [Int: String] = [:]
         let ns = markdown as NSString
         var cleaned = ""
         var lastEnd = 0
-        let lines = markdown.components(separatedBy: "\n")
-        var lineStart = 0
+        // Track line numbers incrementally between matches (1-indexed).
+        var countedThrough = 0
+        var newlinesSeen = 0
 
-        for (lineIdx, line) in lines.enumerated() {
-            let lineRange = NSRange(location: lineStart, length: (line as NSString).length)
-            if let match = regex.firstMatch(in: markdown, range: lineRange) {
-                let fence = ns.substring(with: match.range(at: 1))
-                let lang = ns.substring(with: match.range(at: 2))
-                let filename = ns.substring(with: match.range(at: 3))
-                filenames[lineIdx + 1] = filename // 1-indexed
-                // Replace with just fence + lang (strip title)
-                cleaned += ns.substring(with: NSRange(location: lastEnd, length: match.range.location - lastEnd))
-                cleaned += "\(fence)\(lang)"
-                lastEnd = match.range.location + match.range.length
+        regex.enumerateMatches(in: markdown, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match else { return }
+            var cursor = countedThrough
+            while cursor < match.range.location {
+                let next = ns.range(of: "\n", range: NSRange(location: cursor, length: match.range.location - cursor))
+                if next.location == NSNotFound { break }
+                newlinesSeen += 1
+                cursor = next.location + 1
             }
-            lineStart += (line as NSString).length + 1 // +1 for \n
+            countedThrough = match.range.location
+
+            let fence = ns.substring(with: match.range(at: 1))
+            let lang = ns.substring(with: match.range(at: 2))
+            let filename = ns.substring(with: match.range(at: 3))
+            filenames[newlinesSeen + 1] = filename // 1-indexed
+            // Replace with just fence + lang (strip title)
+            cleaned += ns.substring(with: NSRange(location: lastEnd, length: match.range.location - lastEnd))
+            cleaned += "\(fence)\(lang)"
+            lastEnd = match.range.location + match.range.length
         }
+        guard !filenames.isEmpty else { return (markdown, [:]) }
         cleaned += ns.substring(from: lastEnd)
         return (cleaned, filenames)
     }
@@ -319,7 +396,7 @@ public enum MarkdownRenderer {
     /// Post-processing: inject `<div class="code-filename">` before `<pre>` blocks that had title= attributes.
     private static func injectCodeFilenames(_ html: String, filenames: [Int: String]) -> String {
         guard !filenames.isEmpty else { return html }
-        guard let regex = try? NSRegularExpression(pattern: #"<pre data-sourcepos="(\d+):\d+-\d+:\d+""#) else { return html }
+        guard let regex = preSourceposRegex else { return html }
         let ns = html as NSString
         var result = ""
         var lastEnd = 0
@@ -392,7 +469,7 @@ public enum MarkdownRenderer {
 
     private static func protectWikilinkPipesOnLine(_ line: String) -> String {
         guard line.contains("[[") else { return line }
-        guard let regex = try? NSRegularExpression(pattern: wikilinkRawPattern) else { return line }
+        guard let regex = wikilinkRawRegex else { return line }
         let ns = line as NSString
         let matches = regex.matches(in: line, range: NSRange(location: 0, length: ns.length))
         if matches.isEmpty { return line }
@@ -439,7 +516,7 @@ public enum MarkdownRenderer {
             return html
         }
         let (protectedHTML, segments) = protectCodeRegions(in: html)
-        guard let regex = try? NSRegularExpression(pattern: WikilinkSupport.renderPattern) else {
+        guard let regex = wikilinkRenderRegex else {
             let restored = protectedHTML.replacingOccurrences(of: WikilinkSupport.pipeToken, with: "|")
             return restoreProtectedSegments(in: restored, segments: segments)
         }
@@ -493,8 +570,9 @@ public enum MarkdownRenderer {
     // MARK: - Highlight/Mark ==text==
 
     private static func processHighlightMarks(_ html: String) -> String {
+        guard html.contains("==") else { return html }
         let (protectedHTML, segments) = protectCodeRegions(in: html)
-        guard let regex = try? NSRegularExpression(pattern: #"==([^=\n]+?)=="#) else {
+        guard let regex = highlightMarkRegex else {
             return restoreProtectedSegments(in: protectedHTML, segments: segments)
         }
         let ns = protectedHTML as NSString
@@ -509,10 +587,13 @@ public enum MarkdownRenderer {
     // MARK: - Superscript/Subscript
 
     private static func processSuperSub(_ html: String) -> String {
+        let hasSup = html.contains("^")
+        let hasSub = html.contains("~")
+        guard hasSup || hasSub else { return html }
         let (protectedHTML, segments) = protectCodeRegions(in: html)
         var result = protectedHTML
         // Superscript: ^text^ (not ^^)
-        if let supRegex = try? NSRegularExpression(pattern: #"(?<!\^)\^(?!\^)([^\^\s\n]+?)(?<!\^)\^(?!\^)"#) {
+        if hasSup, let supRegex = superscriptRegex {
             let ns = result as NSString
             result = supRegex.stringByReplacingMatches(
                 in: result,
@@ -521,7 +602,7 @@ public enum MarkdownRenderer {
             )
         }
         // Subscript: ~text~ (not ~~)
-        if let subRegex = try? NSRegularExpression(pattern: #"(?<!~)~(?!~)([^~\s\n]+?)(?<!~)~(?!~)"#) {
+        if hasSub, let subRegex = subscriptRegex {
             let ns = result as NSString
             result = subRegex.stringByReplacingMatches(
                 in: result,
@@ -536,8 +617,7 @@ public enum MarkdownRenderer {
 
     private static func processEmoji(_ html: String) -> String {
         let (protectedHTML, segments) = protectCodeRegions(in: html)
-        guard let tagRegex = try? NSRegularExpression(pattern: #"<[^>]+>"#),
-              let emojiRegex = try? NSRegularExpression(pattern: #":([a-z0-9_+-]+):"#) else {
+        guard let tagRegex, let emojiRegex = emojiShortcodeRegex else {
             return restoreProtectedSegments(in: protectedHTML, segments: segments)
         }
 
@@ -608,10 +688,7 @@ public enum MarkdownRenderer {
         // Group 5 captures title on the same line as [!TYPE].
         // Group 6 captures remaining content inside the first <p> (may span newlines).
         // Group 7 captures content after the first </p>.
-        guard let regex = try? NSRegularExpression(
-            pattern: #"<blockquote([^>]*)>\s*<p([^>]*)>\[!([\w]+)\](-?)[ \t]*([^\n]*?)(?:<br\s*/?>\n?|\n|(?=</p>))([\s\S]*?)</p>([\s\S]*?)</blockquote>"#,
-            options: []
-        ) else { return html }
+        guard let regex = calloutRegex else { return html }
         let ns = html as NSString
         var result = ""
         var lastEnd = 0
@@ -660,7 +737,7 @@ public enum MarkdownRenderer {
     private static func processTOC(_ html: String) -> String {
         guard html.contains("[TOC]") else { return html }
         // Parse headings from the HTML
-        guard let headingRegex = try? NSRegularExpression(pattern: #"<(h[1-6])([^>]*)>(.*?)</\1>"#, options: .dotMatchesLineSeparators) else { return html }
+        guard let headingRegex = tocHeadingRegex else { return html }
         let ns = html as NSString
         var headings: [(level: Int, text: String, id: String)] = []
         var usedIDs: [String: Int] = [:]
@@ -713,7 +790,7 @@ public enum MarkdownRenderer {
         tocHTML += "</li></ul></nav>"
 
         // Replace [TOC] paragraph
-        if let tocRegex = try? NSRegularExpression(pattern: #"<p[^>]*>\[TOC\]</p>"#, options: .caseInsensitive) {
+        if let tocRegex = tocParagraphRegex {
             let nsResult = withIDs as NSString
             withIDs = tocRegex.stringByReplacingMatches(
                 in: withIDs,
@@ -744,7 +821,7 @@ public enum MarkdownRenderer {
     }
 
     private static func existingHeadingID(in attrs: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: #"id=(["'])(.*?)\1"#) else { return nil }
+        guard let regex = headingIDAttrRegex else { return nil }
         let ns = attrs as NSString
         guard let match = regex.firstMatch(in: attrs, range: NSRange(location: 0, length: ns.length)),
               match.numberOfRanges >= 3 else { return nil }
@@ -752,7 +829,7 @@ public enum MarkdownRenderer {
     }
 
     private static func updatingHeadingAttributes(_ attrs: String, id: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: #"(\s*)id=(["']).*?\2"#) else {
+        guard let regex = headingIDReplaceRegex else {
             return attrs + " id=\"\(id)\""
         }
 

@@ -20,18 +20,45 @@ public enum DiagnosticLog {
 
     private static let fileQueue = DispatchQueue(label: "com.sabotage.clearly.log")
 
+    /// Persistent write handle, confined to `fileQueue`. Opening and closing
+    /// a FileHandle per log line costs two syscalls plus security-scoped
+    /// bookkeeping each time — with several lines per user action that adds
+    /// up to constant background I/O churn.
+    nonisolated(unsafe) private static var writeHandle: FileHandle?
+
+    /// Must be called on `fileQueue`.
+    private static func handleForWriting() -> FileHandle? {
+        if let writeHandle { return writeHandle }
+        guard let url = logFileURL else { return nil }
+        if !FileManager.default.fileExists(atPath: url.path) {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
+        guard let handle = try? FileHandle(forWritingTo: url) else { return nil }
+        handle.seekToEndOfFile()
+        writeHandle = handle
+        return handle
+    }
+
+    /// Must be called on `fileQueue`. Drops the cached handle so the next
+    /// write reopens the file — required after trim, which atomically
+    /// replaces the file and would otherwise leave the handle pointing at
+    /// the orphaned old inode.
+    private static func resetHandle() {
+        try? writeHandle?.close()
+        writeHandle = nil
+    }
+
     /// Log to both os_log and a persistent file that survives force-quit
     public static func log(_ message: String) {
         logger.info("\(message, privacy: .public)")
-        let timestamp = dateFormatter.string(from: Date())
-        let line = "[\(timestamp)] [lifecycle] \(message)\n"
-        guard let url = logFileURL, let data = line.data(using: .utf8) else { return }
+        let now = Date()
         fileQueue.async {
-            if let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile()
+            let timestamp = dateFormatter.string(from: now)
+            let line = "[\(timestamp)] [lifecycle] \(message)\n"
+            guard let data = line.data(using: .utf8) else { return }
+            if let handle = handleForWriting() {
                 handle.write(data)
-                handle.closeFile()
-            } else {
+            } else if let url = logFileURL {
                 try? data.write(to: url)
             }
         }
@@ -48,6 +75,7 @@ public enum DiagnosticLog {
             let idx = content.index(content.endIndex, offsetBy: -500_000, limitedBy: content.startIndex) ?? content.startIndex
             let start = content[idx...].firstIndex(of: "\n").map { content.index(after: $0) } ?? idx
             try? String(content[start...]).write(to: url, atomically: true, encoding: .utf8)
+            resetHandle()
         }
     }
 

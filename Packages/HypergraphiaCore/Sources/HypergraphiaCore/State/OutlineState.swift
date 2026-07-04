@@ -77,7 +77,13 @@ public final class OutlineState: ObservableObject {
         }
 
         // Find headings, skipping those inside code blocks/frontmatter
-        var items: [HeadingItem] = []
+        struct RawHeading {
+            let level: Int
+            let title: String
+            let range: NSRange
+        }
+        var raw: [RawHeading] = []
+
         Self.atxHeadingRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
             guard let match else { return }
             let matchRange = match.range
@@ -92,12 +98,12 @@ public final class OutlineState: ObservableObject {
 
             let hashRange = match.range(at: 1)
             let titleRange = match.range(at: 2)
-            let level = hashRange.length
             let rawTitle = nsText.substring(with: titleRange)
-            let title = Self.stripInlineMarkdown(rawTitle)
-            let previewAnchor = Self.previewAnchor(for: matchRange, in: nsText)
-
-            items.append(HeadingItem(level: level, title: title, range: matchRange, previewAnchor: previewAnchor))
+            raw.append(RawHeading(
+                level: hashRange.length,
+                title: Self.stripInlineMarkdown(rawTitle),
+                range: matchRange
+            ))
         }
 
         Self.setextHeadingRegex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
@@ -114,16 +120,43 @@ public final class OutlineState: ObservableObject {
             let titleRange = match.range(at: 1)
             let markerRange = match.range(at: 2)
             let rawTitle = nsText.substring(with: titleRange)
-            let title = Self.stripInlineMarkdown(rawTitle)
             let marker = nsText.substring(with: markerRange)
-            let level = marker.first == "=" ? 1 : 2
-            let previewAnchor = Self.previewAnchor(for: matchRange, in: nsText)
-
-            items.append(HeadingItem(level: level, title: title, range: matchRange, previewAnchor: previewAnchor))
+            raw.append(RawHeading(
+                level: marker.first == "=" ? 1 : 2,
+                title: Self.stripInlineMarkdown(rawTitle),
+                range: matchRange
+            ))
         }
 
-        items.sort { lhs, rhs in
-            lhs.range.location < rhs.range.location
+        raw.sort { $0.range.location < $1.range.location }
+
+        // Resolve every anchor offset's line/column in one forward walk over
+        // the text instead of re-walking from the start for each heading.
+        var offsets: [Int] = []
+        offsets.reserveCapacity(raw.count * 2)
+        for heading in raw {
+            offsets.append(heading.range.location)
+            offsets.append(max(heading.range.location, NSMaxRange(heading.range) - 1))
+        }
+        let positions = Self.lineAndColumnTable(for: offsets, in: nsText)
+
+        let items = raw.map { heading -> HeadingItem in
+            let startOffset = heading.range.location
+            let endOffset = max(heading.range.location, NSMaxRange(heading.range) - 1)
+            let start = positions[startOffset] ?? (line: 1, column: 1)
+            let end = positions[endOffset] ?? start
+            return HeadingItem(
+                level: heading.level,
+                title: heading.title,
+                range: heading.range,
+                previewAnchor: PreviewSourceAnchor(
+                    startLine: start.line,
+                    startColumn: start.column,
+                    endLine: end.line,
+                    endColumn: end.column,
+                    progress: 0
+                )
+            )
         }
 
         DispatchQueue.main.async {
@@ -131,76 +164,67 @@ public final class OutlineState: ObservableObject {
         }
     }
 
+    /// Inline-markdown stripping patterns for heading titles, compiled once.
+    /// (These previously recompiled per heading — six compiles each.)
+    private static let inlineStripPatterns: [(NSRegularExpression, String)] = {
+        let raw: [(String, String)] = [
+            // Images ![alt](url) → alt — must come before links
+            ("!\\[([^\\]]*)\\]\\([^)]+\\)", "$1"),
+            // Links [text](url) → text
+            ("\\[([^\\]]+)\\]\\([^)]+\\)", "$1"),
+            // Bold **text** or __text__
+            ("(\\*\\*|__)(.+?)\\1", "$2"),
+            // Italic *text* or _text_ (simplified)
+            ("(?<![\\w*])[*_](.+?)[*_](?![\\w*])", "$1"),
+            // Strikethrough ~~text~~
+            ("~~(.+?)~~", "$1"),
+            // Inline code `text`
+            ("`([^`]+)`", "$1"),
+        ]
+        return raw.compactMap { pattern, template in
+            (try? NSRegularExpression(pattern: pattern)).map { ($0, template) }
+        }
+    }()
+
     /// Strip bold, italic, code, strikethrough, and link markdown from heading text
     private static func stripInlineMarkdown(_ text: String) -> String {
         var result = text
-        // Links [text](url) → text
-        result = result.replacingOccurrences(
-            of: "\\[([^\\]]+)\\]\\([^)]+\\)",
-            with: "$1",
-            options: .regularExpression
-        )
-        // Images ![alt](url) → alt
-        result = result.replacingOccurrences(
-            of: "!\\[([^\\]]*)\\]\\([^)]+\\)",
-            with: "$1",
-            options: .regularExpression
-        )
-        // Bold **text** or __text__
-        result = result.replacingOccurrences(
-            of: "(\\*\\*|__)(.+?)\\1",
-            with: "$2",
-            options: .regularExpression
-        )
-        // Italic *text* or _text_ (simplified)
-        result = result.replacingOccurrences(
-            of: "(?<![\\w*])[*_](.+?)[*_](?![\\w*])",
-            with: "$1",
-            options: .regularExpression
-        )
-        // Strikethrough ~~text~~
-        result = result.replacingOccurrences(
-            of: "~~(.+?)~~",
-            with: "$1",
-            options: .regularExpression
-        )
-        // Inline code `text`
-        result = result.replacingOccurrences(
-            of: "`([^`]+)`",
-            with: "$1",
-            options: .regularExpression
-        )
+        for (regex, template) in inlineStripPatterns {
+            let range = NSRange(location: 0, length: (result as NSString).length)
+            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: template)
+        }
         return result.trimmingCharacters(in: .whitespaces)
     }
 
-    private static func previewAnchor(for range: NSRange, in text: NSString) -> PreviewSourceAnchor {
-        let start = lineAndColumn(for: range.location, in: text)
-        let endOffset = max(range.location, NSMaxRange(range) - 1)
-        let end = lineAndColumn(for: endOffset, in: text)
-        return PreviewSourceAnchor(
-            startLine: start.line,
-            startColumn: start.column,
-            endLine: end.line,
-            endColumn: end.column,
-            progress: 0
-        )
-    }
+    /// Line/column positions for a set of offsets, resolved in a single
+    /// forward pass. `offsets` may be unsorted and contain duplicates.
+    private static func lineAndColumnTable(
+        for offsets: [Int],
+        in text: NSString
+    ) -> [Int: (line: Int, column: Int)] {
+        guard !offsets.isEmpty else { return [:] }
+        let sortedOffsets = offsets.map { min(max(0, $0), text.length) }.sorted()
+        var table: [Int: (line: Int, column: Int)] = [:]
+        table.reserveCapacity(sortedOffsets.count)
 
-    private static func lineAndColumn(for offset: Int, in text: NSString) -> (line: Int, column: Int) {
-        let clampedOffset = min(max(0, offset), text.length)
         var line = 1
         var lineStart = 0
+        var lineEnd = 0 // start of the next line after `lineStart`
 
-        while lineStart < clampedOffset {
-            let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
-            let nextLineStart = NSMaxRange(lineRange)
-            if nextLineStart > clampedOffset {
-                break
+        for offset in sortedOffsets {
+            if table[offset] != nil { continue }
+            // Advance line-by-line until `offset` falls inside the current line.
+            while lineStart < offset {
+                if lineEnd <= lineStart {
+                    lineEnd = NSMaxRange(text.lineRange(for: NSRange(location: lineStart, length: 0)))
+                }
+                if lineEnd > offset || lineEnd == lineStart { break }
+                line += 1
+                lineStart = lineEnd
+                lineEnd = lineStart
             }
-            line += 1
-            lineStart = nextLineStart
+            table[offset] = (line, max(1, offset - lineStart + 1))
         }
-
-        return (line, max(1, clampedOffset - lineStart + 1))
+        return table
     }
 }

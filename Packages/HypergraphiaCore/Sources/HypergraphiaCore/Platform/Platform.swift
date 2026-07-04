@@ -117,18 +117,71 @@ public extension PlatformColor {
     }
 
     /// Loads a named color from the `HypergraphiaCore` asset catalog (`Bundle.module`).
-    /// The asset must exist — unresolved names trap.
+    /// The asset must exist — unresolved names trap in app builds.
     static func clearlyAsset(named name: String) -> PlatformColor {
         #if os(macOS)
-        guard let color = NSColor(named: NSColor.Name(name), bundle: .module) else {
-            fatalError("Missing color asset '\(name)' in HypergraphiaCore Colors.xcassets")
+        if let color = NSColor(named: NSColor.Name(name), bundle: .module) {
+            return color
         }
-        return color
         #else
-        guard let color = UIColor(named: name, in: .module, compatibleWith: nil) else {
-            fatalError("Missing color asset '\(name)' in HypergraphiaCore Colors.xcassets")
+        if let color = UIColor(named: name, in: .module, compatibleWith: nil) {
+            return color
         }
-        return color
+        #endif
+        // Pure-SwiftPM builds (`swift test`) copy the raw .xcassets JSON into
+        // the resource bundle instead of compiling it with actool, so named
+        // lookup fails there even though every app build resolves it. Parse
+        // the colorset JSON so core logic stays testable from the CLI.
+        if let parsed = rawColorsetAsset(named: name) {
+            return parsed
+        }
+        fatalError("Missing color asset '\(name)' in HypergraphiaCore Colors.xcassets")
+    }
+
+    /// Reads `Colors.xcassets/<name>.colorset/Contents.json` from
+    /// `Bundle.module` and builds a dynamic light/dark color from it.
+    private static func rawColorsetAsset(named name: String) -> PlatformColor? {
+        guard let jsonURL = Bundle.module.url(
+            forResource: "Contents",
+            withExtension: "json",
+            subdirectory: "Colors.xcassets/\(name).colorset"
+        ),
+        let data = try? Data(contentsOf: jsonURL),
+        let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let colors = root["colors"] as? [[String: Any]] else { return nil }
+
+        func component(_ components: [String: Any], _ key: String) -> CGFloat? {
+            if let s = components[key] as? String, let v = Double(s) { return CGFloat(v) }
+            if let v = components[key] as? Double { return CGFloat(v) }
+            return nil
+        }
+
+        var light: PlatformColor?
+        var dark: PlatformColor?
+        for entry in colors {
+            guard let color = entry["color"] as? [String: Any],
+                  let components = color["components"] as? [String: Any],
+                  let r = component(components, "red"),
+                  let g = component(components, "green"),
+                  let b = component(components, "blue"),
+                  let a = component(components, "alpha") else { continue }
+            let resolved = PlatformColor.clearlyColor(red: r, green: g, blue: b, alpha: a)
+            let appearances = entry["appearances"] as? [[String: Any]] ?? []
+            let isDark = appearances.contains { ($0["value"] as? String) == "dark" }
+            if isDark { dark = resolved } else if light == nil { light = resolved }
+        }
+        guard let anyColor = light ?? dark else { return nil }
+        guard let light, let dark else { return anyColor }
+
+        #if os(macOS)
+        return NSColor(name: NSColor.Name(name)) { appearance in
+            let match = appearance.bestMatch(from: [.darkAqua, .aqua])
+            return match == .darkAqua ? dark : light
+        }
+        #else
+        return UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        }
         #endif
     }
 

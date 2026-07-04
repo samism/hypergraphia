@@ -172,7 +172,7 @@ public enum MarkdownStats {
         // (?ms) so . matches newlines and ^$ match line boundaries.
         // Matches ``` or ~~~ fences with optional info string on the same line.
         let pattern = "(?ms)^[ \\t]{0,3}(```+|~~~+)[^\\n]*\\n([\\s\\S]*?)\\n[ \\t]{0,3}\\1[ \\t]*$"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return s }
+        guard let regex = cachedRegex(pattern) else { return s }
         let nsString = s as NSString
         let range = NSRange(location: 0, length: nsString.length)
 
@@ -198,7 +198,7 @@ public enum MarkdownStats {
 
     private static func stripWikiLinks(_ s: String) -> String {
         let pattern = "\\[\\[([^\\]\\|#\\n]+)(?:#([^\\]\\|\\n]+))?(?:\\|([^\\]\\n]+))?\\]\\]"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return s }
+        guard let regex = cachedRegex(pattern) else { return s }
         let nsString = s as NSString
         let range = NSRange(location: 0, length: nsString.length)
 
@@ -233,8 +233,25 @@ public enum MarkdownStats {
     }
 
     private static func replace(_ s: String, pattern: String, template: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return s }
+        guard let regex = cachedRegex(pattern) else { return s }
         let range = NSRange(location: 0, length: (s as NSString).length)
         return regex.stringByReplacingMatches(in: s, options: [], range: range, withTemplate: template)
+    }
+
+    // MARK: - Regex cache
+
+    /// `strip` runs ~20 regex passes per call and is invoked for every stats
+    /// refresh; compiling the patterns each time dominated its cost. Patterns
+    /// are a small fixed set, so the cache never needs eviction.
+    private static let regexCacheLock = NSLock()
+    nonisolated(unsafe) private static var regexCache: [String: NSRegularExpression] = [:]
+
+    private static func cachedRegex(_ pattern: String) -> NSRegularExpression? {
+        regexCacheLock.lock()
+        defer { regexCacheLock.unlock() }
+        if let cached = regexCache[pattern] { return cached }
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        regexCache[pattern] = regex
+        return regex
     }
 }

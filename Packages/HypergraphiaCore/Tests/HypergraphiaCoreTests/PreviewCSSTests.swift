@@ -85,7 +85,7 @@ final class PreviewCSSTests: XCTestCase {
 
     func testDarkPaletteUsesNotesColors() {
         let p = PreviewPalette.dark
-        XCTAssertEqual(p.text, "#DEDEDF")
+        XCTAssertEqual(p.text, "#EDEDEE")
         XCTAssertEqual(p.background, "#1E1E1E")
         XCTAssertEqual(p.accent, "#FFD60A")
         XCTAssertEqual(p.link, "#FFD60A")
