@@ -7,6 +7,11 @@ public enum Limits {
 
     public static let maxHighlightAllLength: Int = 5_000_000
 
+    /// QuickLook previews render in quicklookd with a spacebar-tap latency
+    /// budget; documents past this size render truncated with a notice
+    /// instead of hanging the preview panel.
+    public static let maxQuickLookRenderSize: Int = 1_000_000
+
     public static func isOpenableSize(_ url: URL) -> Bool {
         isFileSize(url, atMost: maxOpenableFileSize)
     }

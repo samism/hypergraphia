@@ -47,4 +47,26 @@ struct TextFileDecoderTests {
         // rather than trapping or throwing.
         _ = TextFileDecoder.decode(data)
     }
+
+    @Test func truncationCutsAtLineBoundary() {
+        let text = "line one\nline two\nline three\n"
+        let data = Data(text.utf8)
+
+        // Under the limit: untouched.
+        let (whole, wasTruncated) = TextFileDecoder.truncatedAtLineBoundary(data, limit: 1000)
+        #expect(!wasTruncated)
+        #expect(whole == data)
+
+        // Limit lands mid-"line two": cut backs off to the end of line one.
+        let (cut, truncated) = TextFileDecoder.truncatedAtLineBoundary(data, limit: 13)
+        #expect(truncated)
+        #expect(String(decoding: cut, as: UTF8.self) == "line one")
+    }
+
+    @Test func truncationWithoutNewlineKeepsPrefix() {
+        let data = Data("abcdefghij".utf8)
+        let (cut, truncated) = TextFileDecoder.truncatedAtLineBoundary(data, limit: 4)
+        #expect(truncated)
+        #expect(String(decoding: cut, as: UTF8.self) == "abcd")
+    }
 }

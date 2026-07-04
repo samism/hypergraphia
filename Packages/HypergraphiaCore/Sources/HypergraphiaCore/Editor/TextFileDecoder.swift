@@ -54,6 +54,20 @@ public enum TextFileDecoder {
         // Never fail to open: replace undecodable bytes with U+FFFD.
         return String(decoding: data, as: UTF8.self)
     }
+
+    /// Truncates `data` to at most `limit` bytes, backing off to the last
+    /// newline inside the window so the cut never splits a line (or a UTF-8
+    /// sequence) mid-way. Used by QuickLook to keep spacebar previews of
+    /// huge documents inside a latency budget.
+    public static func truncatedAtLineBoundary(_ data: Data, limit: Int) -> (data: Data, wasTruncated: Bool) {
+        guard limit > 0 else { return (Data(), !data.isEmpty) }
+        guard data.count > limit else { return (data, false) }
+        let prefix = data.prefix(limit)
+        if let lastNewline = prefix.lastIndex(of: 0x0A) {
+            return (Data(prefix[..<lastNewline]), true)
+        }
+        return (Data(prefix), true)
+    }
 }
 
 private extension String {
